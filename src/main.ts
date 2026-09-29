@@ -1,12 +1,20 @@
 import * as THREE from "three";
+import { asFood, dishLoader, fitOnTable } from "./food-model";
 import { MindARThree } from "../vendor/mind-ar/mindar-image-three.prod.js";
 
 /**
- * One dish, as listed in /public/dishes.json. `video` is a side-by-side RGB+matte MP4
- * produced by `npm run prep-dish` (see scripts/prep-dish.mjs) — plain H.264, so it plays on
- * every phone, unlike a real alpha-channel video which only Chrome/Android supports.
+ * One dish, as listed in /public/dishes.json. Give it EITHER:
+ *  - `model`: a .glb 3D model — real geometry, correct from every angle, sits on the coaster and
+ *    turns slowly. Preferred when a good model exists: a solid object hides small tracking
+ *    jitter far better than a flat plane does.
+ *  - `video`: a side-by-side RGB+matte MP4 from `npm run prep-dish` — a flat "screen" showing a
+ *    pre-rendered rotation. Photographically real, but it's a billboard, not an object.
+ * If both are set, `model` wins.
  */
-type DishEntry = { label: string; video: string; target: string; order: string };
+type DishEntry = { label: string; video?: string; model?: string; target: string; order: string };
+
+/** What each render mode hands back to the shared AR loop. */
+type Content = { object: THREE.Object3D; onFound?: () => void; tick?: (dt: number) => void };
 
 const $ = <T extends Element>(sel: string) => document.querySelector(sel) as T;
 
@@ -93,7 +101,7 @@ async function main() {
     } catch (err) {
       console.error(err);
       const msg = err instanceof Error ? err.message : "";
-      if (msg.includes("Couldn't load")) fail(`${msg} — run npm run prep-dish for this dish first.`, true);
+      if (msg.includes("Couldn't load")) fail(`${msg} — check the dish's video/model file in dishes.json.`, true);
       else fail("Couldn't access the camera. Check camera permission for this site, then try again.", true);
     }
   };
@@ -119,15 +127,110 @@ async function startAR(dish: DishEntry) {
   const { renderer, scene, camera } = mindar;
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 
+  const content = dish.model ? await modelContent(dish.model, renderer) : await videoContent(dish.video!);
+
+  const anchor = mindar.addAnchor(0);
+  anchor.group.add(content.object);
+  anchor.onTargetFound = () => {
+    hint.classList.add("hidden");
+    orderBar.classList.add("shown");
+    content.onFound?.();
+  };
+  anchor.onTargetLost = () => {
+    hint.classList.remove("hidden");
+    orderBar.classList.remove("shown");
+  };
+
+  await mindar.start();
+
+  // No extra float/bob animation on purpose: MindAR's tracked pose already has some jitter, and
+  // stacking a second, independent motion on top of it compounded into visibly worse shaking.
+  const clock = new THREE.Clock();
+  renderer.setAnimationLoop(() => {
+    content.tick?.(Math.min(clock.getDelta(), 0.1));
+    renderer.render(scene, camera);
+  });
+}
+
+/**
+ * Mind-ar's anchor space: the coaster lies in the XY plane, 1 unit = the coaster's width, and +Z
+ * points up out of the coaster toward the viewer. glTF models are Y-up, so the model is tipped
+ * 90° about X to stand on the coaster, then spun about its own vertical axis.
+ */
+async function modelContent(url: string, renderer: THREE.WebGLRenderer): Promise<Content> {
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+
+  const gltf = await dishLoader().loadAsync(url).catch(() => {
+    throw new Error(`Couldn't load ${url}`);
+  });
+  const model = gltf.scene;
+  asFood(model);
+  fitOnTable(model, 0.9); // ~90% of the coaster's width, resting on its surface
+
+  const spin = new THREE.Group(); // turns about the dish's own vertical axis
+  spin.add(model);
+  const upright = new THREE.Group(); // Y-up model → Z-up coaster
+  upright.rotation.x = Math.PI / 2;
+  upright.add(spin);
+
+  // Soft studio lighting from above, so it reads like a plate on a lit table, not a flat render.
+  // Every light is defined RELATIVE TO THE COASTER, not the world: mind-ar places the anchor far
+  // out in front of the camera, which sits at the world origin. A DirectionalLight aims at its
+  // `target`, which defaults to the world origin — i.e. the camera — so left alone it shone from
+  // the pizza back toward the viewer and lit the underside; the top rendered almost black. Same
+  // trap with HemisphereLight, whose "sky" direction comes from its world position. So: ambient
+  // for the base (direction-free), and directional lights whose targets live on the coaster.
+  const lights = new THREE.Group();
+  lights.add(new THREE.AmbientLight(0xfff4e6, 1.15));
+  const aimAtCoaster = (light: THREE.DirectionalLight, x: number, y: number, z: number) => {
+    light.position.set(x, y, z); // +Z is up out of the coaster
+    light.target.position.set(0, 0, 0);
+    lights.add(light, light.target);
+  };
+  aimAtCoaster(new THREE.DirectionalLight(0xffffff, 2.4), 0.6, -0.5, 1.4); // key, high and in front
+  aimAtCoaster(new THREE.DirectionalLight(0xffe8d0, 0.7), -0.8, 0.6, 0.9); // warm fill from behind
+
+  const root = new THREE.Group();
+  root.add(contactShadow(), upright, lights);
+
+  const TURN_SECONDS = 14; // one slow, full turn — calm, like a display turntable
+  return {
+    object: root,
+    tick: (dt) => {
+      spin.rotation.y += (dt * Math.PI * 2) / TURN_SECONDS;
+    },
+  };
+}
+
+/** A soft dark ellipse under the dish so it sits ON the table instead of hovering over it. */
+function contactShadow() {
+  const c = document.createElement("canvas");
+  c.width = c.height = 256;
+  const g = c.getContext("2d")!;
+  const grad = g.createRadialGradient(128, 128, 20, 128, 128, 128);
+  grad.addColorStop(0, "rgba(0,0,0,0.55)");
+  grad.addColorStop(1, "rgba(0,0,0,0)");
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 256, 256);
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.05, 1.05),
+    new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false }),
+  );
+  mesh.position.z = 0.002;
+  return mesh;
+}
+
+async function videoContent(src: string): Promise<Content> {
   const video = document.createElement("video");
-  video.src = dish.video;
+  video.src = src;
   video.loop = true;
   video.muted = true;
   video.playsInline = true;
   video.crossOrigin = "anonymous";
   await new Promise<void>((resolve, reject) => {
     video.addEventListener("loadedmetadata", () => resolve(), { once: true });
-    video.addEventListener("error", () => reject(new Error(`Couldn't load ${dish.video}`)), { once: true });
+    video.addEventListener("error", () => reject(new Error(`Couldn't load ${src}`)), { once: true });
   });
 
   const texture = new THREE.VideoTexture(video);
@@ -143,26 +246,7 @@ async function startAR(dish: DishEntry) {
   // line to change (try `mesh.rotation.x = -Math.PI / 2` and adjust position.z accordingly).
   mesh.position.z = height / 2 + 0.1;
 
-  const anchor = mindar.addAnchor(0);
-  anchor.group.add(mesh);
-  anchor.onTargetFound = () => {
-    hint.classList.add("hidden");
-    orderBar.classList.add("shown");
-    video.play().catch(() => {});
-  };
-  anchor.onTargetLost = () => {
-    hint.classList.remove("hidden");
-    orderBar.classList.remove("shown");
-  };
-
-  await mindar.start();
-
-  // No extra float/bob animation here on purpose: MindAR's own tracked pose already has some
-  // jitter, and stacking a second, independent motion on top of it compounded into visibly
-  // worse shaking. The dish's own rotation (baked into the video) is motion enough.
-  renderer.setAnimationLoop(() => {
-    renderer.render(scene, camera);
-  });
+  return { object: mesh, onFound: () => void video.play().catch(() => {}) };
 }
 
 main();

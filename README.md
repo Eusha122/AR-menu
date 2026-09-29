@@ -107,6 +107,24 @@ Check specifically:
 
 **7. Print the coaster**, cut it to size, put it on the table with its QR code visible.
 
+## 3D models (preferred over video)
+
+A dish can use a `.glb` 3D model instead of (or as well as) a video — set `"model"` in
+`dishes.json`; if both are set, the model wins. A real 3D object is correct from every angle and
+hides small tracking jitter far better than a flat video plane.
+
+1. Generate it from the menu photo (PNG, not WebP) with Higgsfield's **Image to 3D** (Meshy),
+   textured + PBR, ~60k polygons. The cheaper SAM 3D model was noticeably blurrier.
+2. Shrink it for phones — the raw export is ~17 MB:
+   ```
+   npx @gltf-transform/cli optimize raw/<dish>-meshy.glb public/models/<dish>.glb --compress meshopt --texture-compress webp --texture-size 1024
+   ```
+   (17 MB → 1.3 MB for the pizza, visually identical.)
+3. Check it at `/preview.html?src=/models/<dish>.glb` (dev server) before shipping.
+
+Materials are normalized on load (`src/food-model.ts`): AI exports often omit `metallicFactor`,
+which glTF treats as fully metallic and renders nearly black.
+
 ## Running it
 
 ```
