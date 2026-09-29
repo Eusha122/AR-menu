@@ -107,6 +107,14 @@ async function startAR(dish: DishEntry) {
     uiLoading: "no", // we show our own start screen instead
     uiScanning: "no", // we show our own "point at the coaster" hint instead
     uiError: "no",
+    // MindAR's defaults (filterMinCF: 0.001, filterBeta: 1000) are tuned for responsiveness over
+    // steadiness — the tracked pose visibly jitters even when the phone and coaster are both
+    // still. This is a "One Euro Filter": lowering both trades a little responsiveness (slight
+    // lag when you actually move the phone) for a lot less jitter when you don't. Try these
+    // first; if it still shakes, go lower still (e.g. 0.00001 / 10) before assuming it's the
+    // coaster's print quality or lighting instead.
+    filterMinCF: 0.0001,
+    filterBeta: 10,
   });
   const { renderer, scene, camera } = mindar;
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -149,10 +157,10 @@ async function startAR(dish: DishEntry) {
 
   await mindar.start();
 
-  const clock = new THREE.Clock();
+  // No extra float/bob animation here on purpose: MindAR's own tracked pose already has some
+  // jitter, and stacking a second, independent motion on top of it compounded into visibly
+  // worse shaking. The dish's own rotation (baked into the video) is motion enough.
   renderer.setAnimationLoop(() => {
-    // a slow float on top of the video's own rotation, so it doesn't feel like a flat sticker
-    mesh.position.y = Math.sin(clock.getElapsedTime() * 1.1) * 0.04;
     renderer.render(scene, camera);
   });
 }
