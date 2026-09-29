@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <title>BiteME AR</title>
+  <style>
+    :root { --paper: #f0e4d2; --ink: #2a1a10; --tomato: #e8442e; --tomato-deep: #b92f1c; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: #000; overscroll-behavior: none; }
+    body { font-family: -apple-system, "Segoe UI", Arial, sans-serif; color: var(--ink); }
+
+    #ar-container { position: fixed; inset: 0; }
+    /* mind-ar injects its own <video> and <canvas> into this container, absolutely positioned */
+    #ar-container video, #ar-container canvas { object-fit: cover; }
+
+    /* pre-camera start screen */
+    #start {
+      position: fixed; inset: 0; z-index: 10;
+      display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-end;
+      padding: 24px 24px max(24px, env(safe-area-inset-bottom));
+      background: var(--paper);
+    }
+    #start.hidden { display: none; }
+    #start h1 { margin: 0 0 8px; font-size: clamp(28px, 8vw, 40px); line-height: 1.05; font-weight: 900; }
+    #start p { margin: 0 0 22px; font-size: 16px; font-weight: 600; line-height: 1.5; max-width: 46ch; color: #6e5847; }
+    #start button {
+      appearance: none; border: none; border-radius: 999px; padding: 16px 28px;
+      background: var(--tomato); color: var(--paper); font-size: 17px; font-weight: 800;
+      box-shadow: 0 5px 0 var(--tomato-deep);
+    }
+    #start button:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--tomato-deep); }
+    #start .err { color: var(--tomato-deep); font-weight: 700; }
+
+    /* "point at the coaster" hint, shown once the camera is live but no target found yet */
+    #hint {
+      position: fixed; left: 0; right: 0; top: max(18px, env(safe-area-inset-top));
+      z-index: 5; display: flex; justify-content: center; pointer-events: none;
+      transition: opacity .25s ease;
+    }
+    #hint span {
+      background: rgba(42,26,16,.72); color: var(--paper); font-weight: 700; font-size: 14px;
+      padding: 10px 18px; border-radius: 999px;
+    }
+    #hint.hidden { opacity: 0; }
+
+    /* order button, shown once the dish is found */
+    #order {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+      display: flex; justify-content: center; padding: 0 20px max(22px, env(safe-area-inset-bottom));
+      transform: translateY(140%); transition: transform .35s cubic-bezier(.2,.8,.2,1);
+    }
+    #order.shown { transform: translateY(0); }
+    #order a {
+      display: block; width: 100%; max-width: 380px; text-align: center; text-decoration: none;
+      background: var(--tomato); color: var(--paper); font-weight: 800; font-size: 17px;
+      padding: 16px; border-radius: 999px; box-shadow: 0 5px 0 var(--tomato-deep);
+    }
+  </style>
+</head>
+<body>
+  <div id="ar-container"></div>
+
+  <div id="hint" class="hidden"><span>Point your camera at the coaster</span></div>
+
+  <div id="order"><a id="order-link" href="#" target="_blank" rel="noreferrer">Order this now</a></div>
+
+  <div id="start">
+    <h1 id="start-title">BiteME AR</h1>
+    <p id="start-copy">Point your camera at the coaster on your table to see this dish, life-size.</p>
+    <button id="start-btn">Start camera</button>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+{
+  "name": "ar-menu",
+  "private": true,
+  "version": "0.1.0",
+  "description": "BiteME AR — scan a table coaster, watch the dish float and rotate. Deliberately separate from biteme/ — see README.md.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --host",
+    "prep-dish": "node scripts/prep-dish.mjs",
+    "make-coaster": "node scripts/make-coaster.mjs"
+  },
+  "dependencies": {
+    "three": "0.161.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.161.2",
+    "ffmpeg-static": "^5.3.0",
+    "qrcode": "^1.5.4",
+    "sharp": "^0.34.4",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1"
+  }
+}

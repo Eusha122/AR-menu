@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>BiteME AR — target compiler</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", Arial, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 20px; color: #2a1a10; background: #f0e4d2; }
+  h1 { font-size: 22px; }
+  p { line-height: 1.5; color: #6e5847; }
+  input, button { font-size: 16px; padding: 10px 14px; }
+  button { background: #e8442e; color: #faf3e7; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: default; }
+  #status { margin-top: 16px; font-weight: 600; white-space: pre-wrap; }
+  #preview { max-width: 260px; margin-top: 16px; border-radius: 12px; display: none; }
+</style>
+</head>
+<body>
+  <h1>Compile an AR target</h1>
+  <p>
+    This is a local, offline tool (no upload anywhere) that turns one coaster image into the
+    <code>.mind</code> file the AR viewer uses to recognise it. Use the <strong>exact same
+    image</strong> you're printing on the coaster — <code>public/coasters/&lt;dish&gt;.png</code>,
+    made by <code>npm run make-coaster</code>.
+  </p>
+  <input id="file" type="file" accept="image/*" />
+  <br /><br />
+  <button id="go" disabled>Compile</button>
+  <div id="status"></div>
+  <img id="preview" />
+
+  <script type="module">
+    import { Compiler } from "/vendor/mind-ar/mindar-image.prod.js";
+
+    const fileInput = document.getElementById("file");
+    const goBtn = document.getElementById("go");
+    const status = document.getElementById("status");
+    const preview = document.getElementById("preview");
+    let image = null;
+    let baseName = "target";
+
+    fileInput.addEventListener("change", () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+      baseName = file.name.replace(/\.[a-z0-9]+$/i, "");
+      const img = new Image();
+      img.onload = () => {
+        image = img;
+        preview.src = img.src;
+        preview.style.display = "block";
+        goBtn.disabled = false;
+        status.textContent = `Loaded ${img.width}×${img.height}. Ready to compile.`;
+      };
+      img.src = URL.createObjectURL(file);
+    });
+
+    goBtn.addEventListener("click", async () => {
+      if (!image) return;
+      goBtn.disabled = true;
+      status.textContent = "Compiling… this can take 10–30 seconds, the tab may freeze briefly.";
+      try {
+        const compiler = new Compiler();
+        await compiler.compileImageTargets([image], (progress) => {
+          status.textContent = `Compiling… ${Math.round(progress)}%`;
+        });
+        const buffer = compiler.exportData();
+        const blob = new Blob([buffer], { type: "application/octet-stream" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `${baseName}.mind`;
+        a.click();
+        status.textContent = `Done — downloaded ${baseName}.mind. Move it into public/targets/ in the ar-menu project.`;
+      } catch (err) {
+        console.error(err);
+        status.textContent = "Compiling failed — see the browser console. Try a smaller image (under ~1200px) if it hung.";
+      } finally {
+        goBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
