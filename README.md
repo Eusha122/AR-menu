@@ -93,6 +93,33 @@ Check the loop doesn't jump when it restarts, and the load time on real 4G, not 
 
 **7. Print the coaster**, cut it to size, put it on the table with its QR code visible.
 
+## Disc dishes — real 3D from ONE photo (best for pizza and other round, flat dishes)
+
+For a round flat dish (pizza, thali, flatbread) you don't need a video at all. One transparent
+menu photo becomes real 3D that turns on the coaster — no video, no AI generation, no looping:
+
+```
+npm run make-disc -- margherita --photo=../biteme/public/menu/margherita.webp
+```
+
+What happens (`scripts/make-disc.mjs` + `src/disc.ts`):
+1. **Un-tilt.** A round dish shot from an angle is an ellipse whose height/width is the sine of the
+   camera's elevation (the margherita was shot from ~47°). Stretching it back into a circle gives
+   the dish seen from straight above. (Spinning the angled photo itself would just spin an oval
+   like a sticker — the front crust swings to the top.)
+2. **Even the crust.** The angled photo also shows the front crust's outer wall, so the bottom
+   crust band comes out thicker; it's measured (median over many scan lines, crust vs toppings by
+   colour) and matched to the left/right bands, which the tilt doesn't distort.
+3. **Real shape.** In the viewer the texture is projected onto a lathe-built pizza: thin base,
+   puffy rounded crust rim at real Neapolitan proportions (~2 cm on 30 cm), with the rim's outer
+   wall wrapped in the photo's crust band so it shows blistered dough, not smeared edge pixels.
+4. On the coaster it turns slowly (20 s a turn) like a display turntable; the phone's own viewing
+   angle supplies the perspective, so it's correct from any seat.
+
+Then add it to `dishes.json` with `"disc": "/discs/<dish>.webp"` (plus coaster, target, poster as
+usual). Check it first at `/preview.html?disc=/discs/<dish>.webp&elev=40` (dev server; `elev` =
+camera height in degrees, `angle` freezes the turn).
+
 ## Professional transparent video (AI matte) — the best way to make a dish video
 
 `prep-dish`'s ffmpeg keying is the quick path; for a production-quality cut-out use the AI matte
@@ -170,6 +197,8 @@ compiler) and `/preview.html` (3D model preview).
 
 ## Known limits (be upfront about these before selling it)
 
+- **Hold the phone above the coaster.** Image tracking can't lock on when the coaster is seen very
+  flat (about 60° off straight-on) — the on-screen hint says so.
 - **Image tracking in the browser always has slight jitter.** It's smoothed hard (see
   `filterMinCF`/`filterBeta` in `src/ar.ts`). Good light and a flat, matte coaster print help most.
 - **The dish is a filmed view, not 3D** — it's upright and always faces the phone, so it looks

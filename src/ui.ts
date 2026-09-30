@@ -6,10 +6,12 @@
 /**
  * One dish, as listed in /public/dishes.json.
  *  - `video`: side-by-side colour|matte MP4 (scripts/ai-matte — see README). Shown as a sprite.
- *  - `model`: optional .glb 3D model; if set it's used instead of the video.
+ *  - `disc`: top-down texture of a round flat dish (scripts/make-disc.mjs) — rebuilt as real 3D
+ *    and turned on the coaster. Best for pizza, thali, flatbreads. Preferred over `video`.
+ *  - `model`: optional .glb 3D model; if set it's used instead of the others.
  *  - `poster`: transparent image of the dish for the start screen and the dish list.
  */
-export type DishEntry = { label: string; video?: string; model?: string; poster?: string; target: string; order: string };
+export type DishEntry = { label: string; video?: string; disc?: string; model?: string; poster?: string; target: string; order: string };
 export type Manifest = Record<string, DishEntry>;
 
 const $ = <T extends Element>(sel: string) => document.querySelector(sel) as T;

@@ -5,5 +5,12 @@
     "poster": "/posters/truffle-pizza.webp",
     "target": "/targets/truffle-pizza.mind",
     "order": "https://biteme-blush.vercel.app/menu?dish=truffle-pizza"
+  },
+  "margherita": {
+    "label": "Margherita",
+    "disc": "/discs/margherita.webp",
+    "poster": "/posters/margherita.webp",
+    "target": "/targets/margherita.mind",
+    "order": "https://biteme-blush.vercel.app/menu?dish=margherita"
   }
 }

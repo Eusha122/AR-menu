@@ -1,48 +1,73 @@
 import * as THREE from "three";
-import { asFood, dishLoader, fitOnTable } from "./food-model";
+import { buildDisc, discLights } from "./disc";
 
-// Dev-only viewer for judging a dish model before it goes into dishes.json. Same lighting and
-// tone mapping as the AR view (see modelContent in main.ts), viewed from a diner's seat angle.
+// Dev-only viewer for judging a dish before it goes into dishes.json, with the same materials
+// and lighting as the AR view, on a table-coloured background.
+//   /preview.html?src=/models/x.glb          3D model
+//   /preview.html?disc=/discs/x.webp          disc dish (make-disc texture)
+//   &angle=<deg>   freeze the turn at an angle    &elev=<deg>   camera height (default 40°)
 const params = new URLSearchParams(location.search);
-const src = params.get("src") ?? "/models/truffle-pizza.glb";
+const src = params.get("src");
+const disc = params.get("disc");
 const fixedAngle = params.get("angle");
+const elev = (Number(params.get("elev") ?? 40) * Math.PI) / 180;
 
-document.getElementById("label")!.textContent = src;
+document.getElementById("label")!.textContent = disc ?? src ?? "";
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
 document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xefe6d6);
-scene.add(new THREE.HemisphereLight(0xfff4e6, 0x3a2a1e, 1.6));
-const key = new THREE.DirectionalLight(0xffffff, 2.2);
-key.position.set(0.6, 1.4, 0.4); // Y-up here, so "above the table" is +Y
-scene.add(key);
 
-// a diner's eye: ~40° above the table, looking at the dish
+// a diner's eye: `elev` above the table, looking at the dish
 const camera = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.01, 50);
-camera.position.set(0, 1.25, 1.5);
+const dist = 2.1;
+camera.position.set(0, Math.sin(elev) * dist, Math.cos(elev) * dist);
 camera.lookAt(0, 0.05, 0);
 
 const spin = new THREE.Group();
 scene.add(spin);
+const ready = () => ((window as unknown as { ready: boolean }).ready = true);
 
-dishLoader().load(src, (gltf) => {
-  const model = gltf.scene;
-  asFood(model);
-  fitOnTable(model, 0.9);
-  spin.add(model);
-  (window as unknown as { ready: boolean }).ready = true;
-});
+if (disc) {
+  // disc.ts builds Z-up (the AR anchor's convention); this scene is Y-up
+  const zUp = new THREE.Group();
+  zUp.rotation.x = -Math.PI / 2;
+  scene.add(zUp);
+  zUp.add(discLights());
+  new THREE.TextureLoader().load(disc, (tex) => {
+    const d = buildDisc(tex, 1.0);
+    zUp.add(d.object);
+    // spin the disc's own turn group so the preview matches AR exactly
+    spinTarget = d.spin;
+    ready();
+  });
+} else if (src) {
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  scene.add(new THREE.HemisphereLight(0xfff4e6, 0x3a2a1e, 1.6));
+  const key = new THREE.DirectionalLight(0xffffff, 2.2);
+  key.position.set(0.6, 1.4, 0.4);
+  scene.add(key);
+  import("./food-model").then(({ asFood, dishLoader, fitOnTable }) =>
+    dishLoader().load(src, (gltf) => {
+      asFood(gltf.scene);
+      fitOnTable(gltf.scene, 0.9);
+      spin.add(gltf.scene);
+      ready();
+    }),
+  );
+}
 
+let spinTarget: THREE.Object3D = spin;
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
-  if (fixedAngle !== null) spin.rotation.y = (Number(fixedAngle) * Math.PI) / 180;
-  else spin.rotation.y += (clock.getDelta() * Math.PI * 2) / 14;
+  const axis = spinTarget === spin ? "y" : "z";
+  if (fixedAngle !== null) spinTarget.rotation[axis] = (Number(fixedAngle) * Math.PI) / 180;
+  else spinTarget.rotation[axis] += (clock.getDelta() * Math.PI * 2) / 20;
   renderer.render(scene, camera);
 });
 

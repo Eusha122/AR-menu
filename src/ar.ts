@@ -2,6 +2,7 @@ import * as THREE from "three";
 import type { MindARThree as MindARThreeInstance } from "../vendor/mind-ar/mindar-image-three.prod.js";
 
 type MindARThreeClass = typeof MindARThreeInstance;
+import { buildDisc, discLights, DISC_TURN_SECONDS } from "./disc";
 import { cameraFailed, container, orderBar, say, scanning, setButton, startScreen, type DishEntry } from "./ui";
 
 /**
@@ -27,7 +28,7 @@ export async function begin(dish: DishEntry, mediaUrl: string, targetUrl: string
   // is found later.
   let content: Content;
   try {
-    content = dish.model ? await modelContent(mediaUrl) : await videoContent(mediaUrl);
+    content = dish.model ? await modelContent(mediaUrl) : dish.disc ? await discContent(mediaUrl) : await videoContent(mediaUrl);
   } catch (err) {
     console.error(err);
     say("This dish couldn't be prepared on your phone. Try reloading the page.", true);
@@ -141,7 +142,7 @@ function matteMaterial(texture: THREE.VideoTexture) {
 }
 
 /** A soft dark ellipse under the dish so it sits ON the table instead of hovering over it. */
-function contactShadow() {
+function contactShadow(size = 1.05) {
   const c = document.createElement("canvas");
   c.width = c.height = 256;
   const g = c.getContext("2d")!;
@@ -151,7 +152,7 @@ function contactShadow() {
   g.fillStyle = grad;
   g.fillRect(0, 0, 256, 256);
   const material = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, opacity: 0 });
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1.05, 1.05), material);
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(size, size), material);
   mesh.position.z = 0.002;
   return mesh;
 }
@@ -167,6 +168,37 @@ function fader(apply: (o: number) => void) {
       if (value === target) return;
       value = Math.min(target, value + dt / FADE_SECONDS);
       apply(value * value * (3 - 2 * value)); // smoothstep
+    },
+  };
+}
+
+/**
+ * Disc mode: a round flat dish rebuilt as real 3D from one top-down photo (see disc.ts). It lies
+ * ON the coaster and turns slowly like a display turntable — physically what a pizza on a
+ * turntable does, so it looks right from any seat.
+ */
+async function discContent(src: string): Promise<Content> {
+  const texture = await new THREE.TextureLoader().loadAsync(src);
+  const DIAMETER = 0.95; // about the coaster (1 = coaster width): sits on it like the printed dish; bigger overflowed the screen up close
+  const disc = buildDisc(texture, DIAMETER);
+  disc.material.transparent = true;
+  disc.material.opacity = 0;
+  const shadow = contactShadow(DIAMETER * 1.12);
+
+  const root = new THREE.Group();
+  root.add(shadow, disc.object, discLights());
+
+  const fade = fader((o) => {
+    disc.material.opacity = o;
+    (shadow.material as THREE.MeshBasicMaterial).opacity = o;
+  });
+  return {
+    object: root,
+    onFound: fade.show,
+    onLost: fade.hide,
+    tick: (dt) => {
+      fade.tick(dt);
+      disc.spin.rotation.z += (dt * Math.PI * 2) / DISC_TURN_SECONDS;
     },
   };
 }

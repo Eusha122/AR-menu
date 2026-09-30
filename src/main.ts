@@ -119,7 +119,7 @@ function showDish(dish: DishEntry) {
     if (t) setButton(`Loading… ${Math.min(99, Math.round((l / t) * 100))}%`, false);
   };
   const assets = Promise.all([
-    preload(dish.model ?? dish.video!, progress("media")),
+    preload(dish.model ?? dish.disc ?? dish.video!, progress("media")),
     preload(dish.target, progress("target")),
     import("../vendor/mind-ar/mindar-image-three.prod.js"),
     import("./ar"),
