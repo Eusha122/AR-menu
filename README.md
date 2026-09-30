@@ -192,7 +192,9 @@ compiler) and `/preview.html` (3D model preview).
   load. "Start camera" enables only when all of it is on the phone, so AR starts with no stall.
 - The camera is requested by our code first, so a blocked camera / missing camera / camera in use
   each get their own instructions (mind-ar alone hides the reason).
-- The dish fades in when the coaster is found; the screen is kept awake while in AR; the video
+- When the coaster is found the dish pops up from a dot at its centre (springy overshoot, 0.8 s;
+  not replayed on brief tracking drop-outs; instant with "reduce motion"). The screen is kept
+  awake while in AR; the video
   pauses when the tab is hidden.
 
 ## Known limits (be upfront about these before selling it)

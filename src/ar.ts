@@ -61,16 +61,22 @@ export async function begin(dish: DishEntry, mediaUrl: string, targetUrl: string
   const { renderer, scene, camera } = mindar;
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 
+  // Every dish type sits inside this group, which does the entrance: pop up from a dot.
+  const pop = popIn();
+  pop.object.add(content.object);
+
   const anchor = mindar.addAnchor(0);
-  anchor.group.add(content.object);
+  anchor.group.add(pop.object);
   anchor.onTargetFound = () => {
     scanning(false);
     orderBar.classList.add("shown");
+    pop.found();
     content.onFound?.();
   };
   anchor.onTargetLost = () => {
     scanning(true);
     orderBar.classList.remove("shown");
+    pop.lost();
     content.onLost?.();
   };
 
@@ -88,10 +94,65 @@ export async function begin(dish: DishEntry, mediaUrl: string, targetUrl: string
   // independent motion on top of it compounded into visibly worse shaking.
   const clock = new THREE.Clock();
   renderer.setAnimationLoop(() => {
-    content.tick?.(Math.min(clock.getDelta(), 0.1), camera);
+    const dt = Math.min(clock.getDelta(), 0.1);
+    pop.tick(dt);
+    content.tick?.(dt, camera);
     renderer.render(scene, camera);
   });
   running = { stop: () => mindar.stop() };
+}
+
+/**
+ * The entrance: when the coaster is found, the dish grows out of a dot at the coaster's centre
+ * and springs up to full size — overshooting a touch, then settling — as it fades in.
+ *
+ * Tracking drops for a few frames all the time (hand shake, a glare), and re-popping on each of
+ * those would look glitchy: the pop only replays after the coaster has really been out of view
+ * for REPOP_AFTER_MS. Honours the phone's "reduce motion" setting (appears instantly).
+ */
+const POP_SECONDS = 0.8;
+const REPOP_AFTER_MS = 1000;
+
+function popIn() {
+  const object = new THREE.Group();
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const MIN = 0.001; // "a dot" — never exactly 0, which makes a degenerate matrix
+  let t = -1; // seconds into the animation; -1 = not animating
+  let everShown = false;
+  let lostAt = 0;
+
+  // easeOutBack: accelerates out of the dot, overshoots ~6%, settles back to exactly 1
+  const easeOutBack = (x: number) => {
+    const c1 = 1.25;
+    const c3 = c1 + 1;
+    return 1 + c3 * (x - 1) ** 3 + c1 * (x - 1) ** 2;
+  };
+
+  object.scale.setScalar(MIN);
+  return {
+    object,
+    found() {
+      const brief = everShown && performance.now() - lostAt < REPOP_AFTER_MS;
+      everShown = true;
+      if (brief || reduced) {
+        t = -1;
+        object.scale.setScalar(1);
+      } else {
+        t = 0;
+        object.scale.setScalar(MIN);
+      }
+    },
+    lost() {
+      lostAt = performance.now();
+    },
+    tick(dt: number) {
+      if (t < 0) return;
+      t += dt;
+      const k = Math.min(1, t / POP_SECONDS);
+      object.scale.setScalar(Math.max(MIN, easeOutBack(k)));
+      if (k >= 1) t = -1;
+    },
+  };
 }
 
 /** Keep the screen on while the guest is looking at the table (it dims mid-look otherwise). */
@@ -108,7 +169,7 @@ function keepAwake() {
 /* Dish content                                                                                 */
 /* ------------------------------------------------------------------------------------------ */
 
-const FADE_SECONDS = 0.35;
+const FADE_SECONDS = 0.25; // quick: the pop-in (popIn) carries the entrance; this just softens the first frames
 
 /**
  * The colour|matte shader: the video is two frames side by side — left the dish in plain
