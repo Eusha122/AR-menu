@@ -51,25 +51,17 @@ instead, for two reasons:
 BiteME's films). Prompt for: the dish rotating a full 360°, slow, on a **pure black background**,
 studio lighting, first and last frame matching (a clean loop). Save it as `raw/<dish>.mp4`.
 
-**2. Turn it into the shader-ready video:**
-```
-npm run prep-dish -- truffle-pizza
-```
-This keys out the black background and writes `public/videos/truffle-pizza.mp4`. **Open that file
-and look at it** before continuing — a black background is never perfectly pure, so the default
-keying settings are a starting point, not a guarantee. If edges look ragged or part of the dish
-vanished, retune and re-run:
-```
-npm run prep-dish -- truffle-pizza --sim=0.22 --blend=0.08
-```
-`--trim=start:end` (seconds) cuts the clip first, if the AI generation added lead-in/out that isn't
-part of the clean rotation.
+**2. Turn it into the transparent video** with the AI matte pipeline — see
+[Professional transparent video](#professional-transparent-video-ai-matte--the-best-way-to-make-a-dish-video)
+below. (`npm run prep-dish -- <dish>` is a quick ffmpeg-only fallback with softer edges.)
+Also save a **poster**: one matted frame as a transparent `public/posters/<dish>.webp` (~720 px
+wide) — it's shown on the start screen and the dish list.
 
-**3. Make the coaster:**
+**3. Make the coaster** (the QR code points at the live site by default; set `AR_SITE_URL` or
+`--url=` for another deploy):
 ```
 npm run make-coaster -- truffle-pizza --label="Truffle Pizza" \
-  --photo=../biteme/public/menu/truffle-pizza.webp \
-  --url=https://<wherever-this-deploys>/dish/truffle-pizza
+  --photo=../biteme/public/menu/truffle-pizza.webp
 ```
 Writes `public/coasters/truffle-pizza.png` (print-ready, 4×4in @ 300dpi) and a `-preview.png` for
 emails. **Use the real dish photo already on the BiteME menu** — same photo the guest already
@@ -88,22 +80,16 @@ trusts, and the best possible tracking image in one move.
 "truffle-pizza": {
   "label": "Truffle Pizza",
   "video": "/videos/truffle-pizza.mp4",
+  "poster": "/posters/truffle-pizza.webp",
   "target": "/targets/truffle-pizza.mind",
   "order": "https://biteme-blush.vercel.app/menu?dish=truffle-pizza"
 }
 ```
+It appears on the landing page (`/`) automatically.
 
-**6. Test on a real phone**, both an Android (Chrome) and an iPhone (Safari) if you can — these are
-the two rendering engines and both need to look right, not just work. Open
-`https://<your-deploy>/dish/truffle-pizza`, tap Start, point at the printed coaster.
-
-Check specifically:
-- **Does the dish stand up facing you, or does it look like it's lying on its side/flat?** This
-  depends on MindAR's anchor axis convention, which is genuinely something you have to see on a
-  device to get right — if it looks wrong, open [src/main.ts](src/main.ts) and look at the comment
-  next to `mesh.position.z`; the one-line fix is noted right there.
-- The loop shouldn't flash or jump when it restarts.
-- Load time on real 4G, not just your office wifi.
+**6. Test on a real phone** — Android Chrome and iPhone Safari if you can. Open
+`https://<your-deploy>/dish/<dish>`, wait for "Start camera", tap it, point at the printed coaster.
+Check the loop doesn't jump when it restarts, and the load time on real 4G, not office Wi-Fi.
 
 **7. Print the coaster**, cut it to size, put it on the table with its QR code visible.
 
@@ -132,7 +118,7 @@ It runs on CPU on purpose: at full resolution it doesn't fit in an 8 GB GPU thro
 The viewer shows the video as a sprite — always square-on to the phone and upright on screen,
 centred over the coaster, with a soft contact shadow underneath. (Lying flat on the coaster
 double-counts the filmed perspective; turning it "toward the camera across the table" breaks when
-the phone is held nearly overhead. See `videoContent` in `src/main.ts`.)
+the phone is held nearly overhead. See `videoContent` in `src/ar.ts`.)
 
 ## 3D models
 
@@ -149,6 +135,9 @@ hides small tracking jitter far better than a flat video plane.
    (17 MB → 1.3 MB for the pizza, visually identical.)
 3. Check it at `/preview.html?src=/models/<dish>.glb` (dev server) before shipping.
 
+The pizza currently uses the video (the AI 3D model wasn't photoreal enough); its optimized model
+is kept in `raw/truffle-pizza.glb`. The 3D code is only downloaded for dishes that set `"model"`.
+
 Materials are normalized on load (`src/food-model.ts`): AI exports often omit `metallicFactor`,
 which glTF treats as fully metallic and renders nearly black.
 
@@ -160,15 +149,31 @@ npm run build     # → dist/, static files, deploy anywhere
 npm run preview   # serve the production build locally
 ```
 
-Deploying `dist/` to Vercel: [vercel.json](vercel.json) rewrites `/dish/:slug` to `index.html`
-(needed since this is a single static page that reads the slug from the URL client-side). If you
-deploy elsewhere, replicate that one rewrite rule.
+Vercel settings: framework **Vite**, output directory **`dist`**, root directory = this folder.
+[vercel.json](vercel.json) rewrites `/dish/:slug` to `index.html`, sets caching (hashed JS forever,
+media for a day, `dishes.json` always revalidated) and security headers (camera allowed for this
+site only). If you deploy elsewhere, replicate the rewrite and the `Permissions-Policy` header.
 
-## Known rough edges (v1, be upfront about these before selling it)
+Dev-only pages (served by `npm run dev`, never deployed): `/tools/compile.html` (AR target
+compiler) and `/preview.html` (3D model preview).
 
-- **Background keying is per-clip.** A different lighting setup or sauce color can need different
-  `--sim`/`--blend` values. There's no universal setting — always preview.
-- **Anchor orientation** (dish standing up vs. lying flat) is noted above and needs a real-device
-  check on the first dish; every dish after that reuses the same fix.
-- The vendored mind-ar bundle is ~450KB gzipped (it bundles a small ML model for tracking). That's
-  normal for image-tracking AR and only loads on the AR page itself, never on the main BiteME site.
+## How the page loads (why it's fast)
+
+- `src/main.ts` + `src/ui.ts` are the whole first screen (~5 KB gzipped) — it appears instantly.
+- The same moment, in parallel: the dish video and coaster data are downloaded into memory with a
+  progress %, and the AR code (`src/ar.ts`, three.js ~126 KB gz) and tracker (mind-ar ~330 KB gz)
+  load. "Start camera" enables only when all of it is on the phone, so AR starts with no stall.
+- The camera is requested by our code first, so a blocked camera / missing camera / camera in use
+  each get their own instructions (mind-ar alone hides the reason).
+- The dish fades in when the coaster is found; the screen is kept awake while in AR; the video
+  pauses when the tab is hidden.
+
+## Known limits (be upfront about these before selling it)
+
+- **Image tracking in the browser always has slight jitter.** It's smoothed hard (see
+  `filterMinCF`/`filterBeta` in `src/ar.ts`). Good light and a flat, matte coaster print help most.
+- **The dish is a filmed view, not 3D** — it's upright and always faces the phone, so it looks
+  right from a normal seated angle but doesn't reveal the underside if you look from very low.
+- **AI video quality sets the ceiling.** Generate on a pure black background (check a frame's
+  corners are exactly `0,0,0`) or the cut-out will need more cleanup.
+- The tracker (mind-ar ~330 KB gz) only loads on dish pages, never on the main BiteME site.

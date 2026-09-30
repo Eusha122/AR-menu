@@ -192,4 +192,4 @@ if (mode === "mask") {
   console.log(`  Ragged edges or holes? Re-run with different --sim/--blend/--median values.`);
 }
 console.log(`\n  Next: add "${dish}" to public/dishes.json (if not already), then compile its AR target —`);
-console.log(`  see public/tools/compile.html — into public/targets/${dish}.mind.`);
+console.log(`  see /tools/compile.html on the dev server — into public/targets/${dish}.mind.`);

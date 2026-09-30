@@ -3,74 +3,121 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-  <title>BiteME AR</title>
+  <title>BiteME AR — see your dish on the table</title>
+  <meta name="description" content="Scan the coaster on your table and see the dish in augmented reality before you order. No app needed." />
+  <meta name="theme-color" content="#f0e4d2" />
+  <meta name="color-scheme" content="light" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23e8442e'/%3E%3Ccircle cx='32' cy='32' r='16' fill='%23f5b21b'/%3E%3Ccircle cx='27' cy='28' r='3' fill='%23b92f1c'/%3E%3Ccircle cx='37' cy='35' r='3' fill='%23b92f1c'/%3E%3C/svg%3E" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="BiteME AR — see your dish on the table" />
+  <meta property="og:description" content="Scan the coaster and watch the dish appear on your table. No app needed." />
+  <meta property="og:image" content="https://ar-menu-xi-kohl.vercel.app/posters/truffle-pizza-share.jpg" />
+  <meta name="twitter:card" content="summary_large_image" />
   <style>
-    :root { --paper: #f0e4d2; --ink: #2a1a10; --tomato: #e8442e; --tomato-deep: #b92f1c; }
+    :root {
+      --paper: #f0e4d2; --page: #faf3e7; --ink: #2a1a10; --ink-2: #6e5847;
+      --tomato: #e8442e; --tomato-deep: #b92f1c; --line: rgba(42, 26, 16, 0.14);
+    }
     * { box-sizing: border-box; }
     html, body { margin: 0; height: 100%; background: #000; overscroll-behavior: none; }
-    body { font-family: -apple-system, "Segoe UI", Arial, sans-serif; color: var(--ink); }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; color: var(--ink); -webkit-tap-highlight-color: transparent; }
 
     #ar-container { position: fixed; inset: 0; }
     /* mind-ar injects its own <video> and <canvas> into this container, absolutely positioned */
     #ar-container video, #ar-container canvas { object-fit: cover; }
 
-    /* pre-camera start screen */
+    /* ---------- start / landing screen ---------- */
     #start {
-      position: fixed; inset: 0; z-index: 10;
-      display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-end;
-      padding: 24px 24px max(24px, env(safe-area-inset-bottom));
+      position: fixed; inset: 0; z-index: 10; overflow-y: auto;
+      display: flex; flex-direction: column;
+      padding: max(20px, env(safe-area-inset-top)) 24px max(24px, env(safe-area-inset-bottom));
       background: var(--paper);
+      transition: opacity .35s ease, visibility .35s;
     }
-    #start.hidden { display: none; }
-    #start h1 { margin: 0 0 8px; font-size: clamp(28px, 8vw, 40px); line-height: 1.05; font-weight: 900; }
-    #start p { margin: 0 0 22px; font-size: 16px; font-weight: 600; line-height: 1.5; max-width: 46ch; color: #6e5847; }
-    #start button {
-      appearance: none; border: none; border-radius: 999px; padding: 16px 28px;
-      background: var(--tomato); color: var(--paper); font-size: 17px; font-weight: 800;
-      box-shadow: 0 5px 0 var(--tomato-deep);
+    #start.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+    .brand { font-size: 12px; font-weight: 800; letter-spacing: .22em; text-transform: uppercase; color: var(--tomato); }
+    .poster { flex: 1; min-height: 180px; display: flex; align-items: center; justify-content: center; padding: 18px 0; }
+    .poster img { width: 100%; max-width: 420px; max-height: 44vh; object-fit: contain; filter: drop-shadow(0 18px 22px rgba(42, 26, 16, .28)); animation: float 5s ease-in-out infinite; }
+    .poster img[hidden] { display: none; }
+    @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+    #start h1 { margin: 0 0 8px; font-size: clamp(30px, 8.5vw, 44px); line-height: 1.02; font-weight: 900; letter-spacing: -.01em; }
+    #start-copy { margin: 0 0 22px; font-size: 16px; font-weight: 600; line-height: 1.5; max-width: 44ch; color: var(--ink-2); }
+    #start-copy.err { color: var(--tomato-deep); font-weight: 700; }
+    #start-btn {
+      appearance: none; border: 0; border-radius: 999px; padding: 17px 30px; width: 100%; max-width: 380px;
+      background: var(--tomato); color: var(--page); font: inherit; font-size: 17px; font-weight: 800;
+      box-shadow: 0 5px 0 var(--tomato-deep); cursor: pointer;
     }
-    #start button:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--tomato-deep); }
-    #start .err { color: var(--tomato-deep); font-weight: 700; }
+    #start-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--tomato-deep); }
+    #start-btn:disabled { opacity: .75; cursor: progress; }
+    #start-btn:focus-visible, .dish-list a:focus-visible, #order a:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+    .fine { margin: 14px 0 0; font-size: 12px; font-weight: 600; color: var(--ink-2); opacity: .8; }
 
-    /* "point at the coaster" hint, shown once the camera is live but no target found yet */
+    /* landing page: list of dishes */
+    .dish-list { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 10px; }
+    .dish-list a {
+      display: flex; align-items: center; gap: 14px; padding: 12px; border-radius: 20px;
+      background: var(--page); border: 2px solid var(--line); color: var(--ink); text-decoration: none; font-weight: 800; font-size: 17px;
+    }
+    .dish-list img { width: 64px; height: 64px; object-fit: contain; }
+
+    /* ---------- in AR ---------- */
     #hint {
       position: fixed; left: 0; right: 0; top: max(18px, env(safe-area-inset-top));
-      z-index: 5; display: flex; justify-content: center; pointer-events: none;
-      transition: opacity .25s ease;
+      z-index: 5; display: flex; justify-content: center; pointer-events: none; transition: opacity .25s ease;
     }
-    #hint span {
-      background: rgba(42,26,16,.72); color: var(--paper); font-weight: 700; font-size: 14px;
-      padding: 10px 18px; border-radius: 999px;
-    }
-    #hint.hidden { opacity: 0; }
+    #hint span { background: rgba(42, 26, 16, .78); color: var(--page); font-weight: 700; font-size: 14px; padding: 10px 18px; border-radius: 999px; }
+    #hint.hidden, #reticle.hidden { opacity: 0; }
 
-    /* order button, shown once the dish is found */
+    /* scanning frame: four corners, gently breathing, until the coaster is found */
+    #reticle {
+      position: fixed; left: 50%; top: 46%; width: min(62vw, 300px); aspect-ratio: 1; z-index: 4;
+      transform: translate(-50%, -50%); pointer-events: none; transition: opacity .3s ease;
+      animation: breathe 2.2s ease-in-out infinite;
+    }
+    #reticle i { position: absolute; width: 22%; height: 22%; border: 4px solid rgba(250, 243, 231, .92); }
+    #reticle i:nth-child(1) { top: 0; left: 0; border-right: 0; border-bottom: 0; border-top-left-radius: 18px; }
+    #reticle i:nth-child(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; border-top-right-radius: 18px; }
+    #reticle i:nth-child(3) { bottom: 0; left: 0; border-right: 0; border-top: 0; border-bottom-left-radius: 18px; }
+    #reticle i:nth-child(4) { bottom: 0; right: 0; border-left: 0; border-top: 0; border-bottom-right-radius: 18px; }
+    @keyframes breathe { 0%, 100% { transform: translate(-50%, -50%) scale(1); } 50% { transform: translate(-50%, -50%) scale(.94); } }
+
     #order {
       position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
       display: flex; justify-content: center; padding: 0 20px max(22px, env(safe-area-inset-bottom));
-      transform: translateY(140%); transition: transform .35s cubic-bezier(.2,.8,.2,1);
+      transform: translateY(140%); transition: transform .35s cubic-bezier(.2, .8, .2, 1);
     }
     #order.shown { transform: translateY(0); }
     #order a {
       display: block; width: 100%; max-width: 380px; text-align: center; text-decoration: none;
-      background: var(--tomato); color: var(--paper); font-weight: 800; font-size: 17px;
-      padding: 16px; border-radius: 999px; box-shadow: 0 5px 0 var(--tomato-deep);
+      background: var(--tomato); color: var(--page); font-weight: 800; font-size: 17px;
+      padding: 17px; border-radius: 999px; box-shadow: 0 5px 0 var(--tomato-deep);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .poster img, #reticle { animation: none; }
+      #start, #order, #hint, #reticle { transition: none; }
     }
   </style>
 </head>
 <body>
-  <div id="ar-container"></div>
+  <div id="ar-container" aria-hidden="true"></div>
 
-  <div id="hint" class="hidden"><span>Point your camera at the coaster</span></div>
+  <div id="reticle" class="hidden" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+  <div id="hint" class="hidden" role="status"><span>Point your camera at the coaster</span></div>
+  <div id="order"><a id="order-link" href="#" target="_blank" rel="noopener">Order this now</a></div>
 
-  <div id="order"><a id="order-link" href="#" target="_blank" rel="noreferrer">Order this now</a></div>
+  <main id="start">
+    <div class="brand">BiteME · AR</div>
+    <div class="poster"><img id="start-poster" alt="" hidden /></div>
+    <h1 id="start-title">See it on your table</h1>
+    <p id="start-copy">Loading…</p>
+    <ul id="dish-list" class="dish-list" hidden></ul>
+    <button id="start-btn" type="button" disabled>Loading…</button>
+    <p class="fine" id="fine">Works in your phone's browser — no app needed. Your camera view never leaves your phone.</p>
+  </main>
 
-  <div id="start">
-    <h1 id="start-title">BiteME AR</h1>
-    <p id="start-copy">Point your camera at the coaster on your table to see this dish, life-size.</p>
-    <button id="start-btn">Start camera</button>
-  </div>
-
+  <noscript><p style="position:fixed;inset:auto 0 0;padding:20px;background:#fff">This page needs JavaScript to show the dish in AR.</p></noscript>
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
  * quiet zone does not, and tracks noticeably worse.
  *
  * Usage:
- *   npm run make-coaster -- truffle-pizza --label="Truffle Pizza" --photo=../biteme/public/menu/truffle-pizza.webp --url=https://ar.biteme.example/dish/truffle-pizza
+ *   npm run make-coaster -- truffle-pizza --label="Truffle Pizza" --photo=../biteme/public/menu/truffle-pizza.webp
  *
  * Output: public/coasters/<dish>.png — a 1200x1200px (4x4in @ 300dpi) print-ready file, and
  * public/coasters/<dish>-preview.png, a smaller version for emails/screens.
@@ -36,7 +36,9 @@ const flag = (name, fallback) => {
 
 const label = flag("label", dish);
 const photo = flag("photo", null);
-const url = flag("url", `https://ar.biteme.example/dish/${dish}`);
+// QR target. Defaults to the live site; override with --url= or AR_SITE_URL for another deploy.
+const site = (process.env.AR_SITE_URL ?? "https://ar-menu-xi-kohl.vercel.app").replace(/\/+$/, "");
+const url = flag("url", `${site}/dish/${dish}`);
 
 if (!photo || !fs.existsSync(path.resolve(root, photo))) {
   console.error(`--photo is required and must exist. Got: ${photo ?? "(none)"}`);
@@ -87,7 +89,7 @@ async function build() {
 
   console.log(`✓ public/coasters/${dish}.png (print at 4x4in / 300dpi)`);
   console.log(`✓ public/coasters/${dish}-preview.png`);
-  console.log(`\nNext: compile THIS SAME PNG as the AR tracking target in public/tools/compile.html —`);
+  console.log(`\nNext: compile THIS SAME PNG as the AR tracking target at /tools/compile.html (dev server) —`);
   console.log(`the printed coaster and the compiled target must be the exact same image.`);
 }
 
