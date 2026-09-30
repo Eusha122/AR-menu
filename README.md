@@ -136,8 +136,7 @@ edges and top as it turns — which is why tall dishes use a video, or a still s
 printed on the coaster (`BASE_Y` in `spriteContent`, `src/ar.ts`) so the printed photo is fully
 covered — standing it at the coaster's centre left the printed bottom half peeking out underneath.
 
-The BiteME Smash started as a sprite and is now a video (`"tall": true` makes a video dish stand on
-the coaster like a sprite, instead of being centred). To upgrade a sprite dish to video: generate a turntable clip of the menu photo on pure black
+To upgrade a sprite dish to video: generate a turntable clip of the menu photo on pure black
 (same Kling prompt/settings as the truffle pizza), run it through the AI matte pipeline below,
 and change `"sprite"` to `"video"` in `dishes.json`.
 
