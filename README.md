@@ -120,6 +120,26 @@ Then add it to `dishes.json` with `"disc": "/discs/<dish>.webp"` (plus coaster, 
 usual). Check it first at `/preview.html?disc=/discs/<dish>.webp&elev=40` (dev server; `elev` =
 camera height in degrees, `angle` freezes the turn).
 
+## Which mode for which dish
+
+| Dish shape | Mode | Why |
+|---|---|---|
+| Round & flat (pizza, thali, flatbread) | `disc` | Real 3D from one menu photo, turns smoothly, tiny download |
+| Tall (burger, layered cake, drink) — best | `video` | A turntable video shows every side for real; tall food is seen from the side anyway |
+| Tall — quick / free | `sprite` | The menu photo standing on the coaster, facing the phone; doesn't turn |
+
+`disc` can't do tall food (it's a flat shape), and a 3D shape spun from ONE side photo smears its
+edges and top as it turns — which is why tall dishes use a video, or a still sprite until one exists.
+
+**Sprite** (`"sprite": "/sprites/<dish>.webp"`): the transparent menu photo, trimmed to the dish
+(`sharp(...).trim()`), at native resolution. It stands just below where the dish's bottom is
+printed on the coaster (`BASE_Y` in `spriteContent`, `src/ar.ts`) so the printed photo is fully
+covered — standing it at the coaster's centre left the printed bottom half peeking out underneath.
+
+To upgrade a sprite dish to video: generate a turntable clip of the menu photo on pure black
+(same Kling prompt/settings as the truffle pizza), run it through the AI matte pipeline below,
+and change `"sprite"` to `"video"` in `dishes.json`.
+
 ## Professional transparent video (AI matte) — the best way to make a dish video
 
 `prep-dish`'s ffmpeg keying is the quick path; for a production-quality cut-out use the AI matte
@@ -131,10 +151,13 @@ python -m venv .venv && .venv/Scripts/python -m pip install -r scripts/ai-matte/
 ffmpeg -i raw/<dish>.mp4 -vsync 0 work/<dish>/src/%03d.png
 # 2. precise per-frame matte (BiRefNet) + edge colour decontamination   (~20 s/frame on CPU)
 .venv/Scripts/python scripts/ai-matte/matte.py work/<dish>
-# 3. remove the blocky compression band AI video leaves around the edge, floating crumbs, pinholes
+# 3. ONLY if the clip has a blocky dark band around the edge (the truffle pizza did): peel it off.
+#    SKIP for dishes with dark edges of their own — on the burger it ate the crispy patty lace.
 .venv/Scripts/python scripts/ai-matte/cleanup.py work/<dish>
-# 4. crop tight to the dish, colour|matte side by side, drop the duplicate loop frame
+# 4. crop tight to the dish, colour|matte side by side (add --alpha alpha if you skipped step 3)
 .venv/Scripts/python scripts/ai-matte/compose.py work/<dish>
+#    clip starts with a slow AI 'ease-in'? cut it and hide the loop seam, e.g. the burger:
+#    compose.py work/<dish> --alpha alpha --start 24 --end 191 --xfade 8   (matte frames 16+ too)
 # 5. encode for phones
 ffmpeg -framerate 24 -i work/<dish>/sbs/%03d.png -vf "scale='min(2048,iw)':-2" -c:v libx264 -crf 18 -pix_fmt yuv420p -movflags +faststart public/videos/<dish>.mp4
 ```

@@ -28,7 +28,13 @@ export async function begin(dish: DishEntry, mediaUrl: string, targetUrl: string
   // is found later.
   let content: Content;
   try {
-    content = dish.model ? await modelContent(mediaUrl) : dish.disc ? await discContent(mediaUrl) : await videoContent(mediaUrl);
+    content = dish.model
+      ? await modelContent(mediaUrl)
+      : dish.disc
+        ? await discContent(mediaUrl)
+        : dish.sprite
+          ? await spriteContent(mediaUrl)
+          : await videoContent(mediaUrl);
   } catch (err) {
     console.error(err);
     say("This dish couldn't be prepared on your phone. Try reloading the page.", true);
@@ -264,6 +270,67 @@ async function discContent(src: string): Promise<Content> {
   };
 }
 
+/**
+ * Sprite mode: a still, background-free photo of a TALL dish (burger, layered cake, drink),
+ * standing on the coaster by its bottom edge and always turned square-on to the phone — how you
+ * look at a burger on a plate. Used until a turntable video of the dish exists (then switch the
+ * dish to `video`). Tall food can't use disc mode, and a 3D shape spun from a single side photo
+ * smears its edges and bun top as it turns.
+ */
+async function spriteContent(src: string): Promise<Content> {
+  const texture = await new THREE.TextureLoader().loadAsync(src);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 8;
+  const { width: iw, height: ih } = texture.image as { width: number; height: number };
+
+  const WIDTH = 1.0; // about the coaster (1 = coaster width); a burger is ~12 cm on a 10 cm coaster
+  const height = (WIDTH * ih) / iw;
+  // bottom edge at the origin, so the dish stands ON the coaster rather than floating through it
+  const geometry = new THREE.PlaneGeometry(WIDTH, height).translate(0, height / 2, 0);
+  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false, toneMapped: false, opacity: 0 });
+  const mesh = new THREE.Mesh(geometry, material);
+  // Stand it where the printed dish's BOTTOM is (a little toward the coaster's lower, label edge —
+  // the edge that faces the diner), not at the centre: standing at the centre, the dish rose up
+  // from mid-coaster and the lower half of the printed photo peeked out underneath — two burgers.
+  const BASE_Y = -0.4; // just below the printed dish's bottom on make-coaster's layout (~-0.33), so none of it peeks out
+  mesh.position.set(0, BASE_Y, 0.01);
+  const shadow = contactShadow(WIDTH * 1.05);
+  shadow.position.y = BASE_Y;
+
+  const root = new THREE.Group();
+  root.add(shadow, mesh);
+  const fade = fader((o) => {
+    material.opacity = o;
+    (shadow.material as THREE.MeshBasicMaterial).opacity = o;
+  });
+  const face = faceCamera(mesh, root);
+  return {
+    object: root,
+    onFound: fade.show,
+    onLost: fade.hide,
+    tick: (dt, camera) => {
+      fade.tick(dt);
+      face(camera);
+    },
+  };
+}
+
+/**
+ * Keeps a flat picture square-on to the phone and upright on screen (a sprite): its local
+ * rotation = inverse(parent's world rotation) × the camera's world rotation. Works from any
+ * viewing angle — unlike turning it "toward the camera across the table", which swung sideways
+ * when the phone was held nearly overhead.
+ */
+function faceCamera(mesh: THREE.Object3D, parent: THREE.Object3D) {
+  const camQ = new THREE.Quaternion();
+  const parentQ = new THREE.Quaternion();
+  return (camera: THREE.Camera) => {
+    camera.getWorldQuaternion(camQ);
+    parent.getWorldQuaternion(parentQ);
+    mesh.quaternion.copy(parentQ.invert().multiply(camQ));
+  };
+}
+
 async function videoContent(src: string): Promise<Content> {
   const video = document.createElement("video");
   video.src = src;
@@ -303,18 +370,14 @@ async function videoContent(src: string): Promise<Content> {
   });
   document.addEventListener("visibilitychange", () => (document.hidden ? video.pause() : void video.play().catch(() => {})));
 
-  const camQ = new THREE.Quaternion();
-  const parentQ = new THREE.Quaternion();
+  const face = faceCamera(mesh, root);
   return {
     object: root,
     onFound: fade.show,
     onLost: fade.hide,
     tick: (dt, camera) => {
       fade.tick(dt);
-      // local rotation = inverse(parent's world rotation) × camera's world rotation
-      camera.getWorldQuaternion(camQ);
-      root.getWorldQuaternion(parentQ);
-      mesh.quaternion.copy(parentQ.invert().multiply(camQ));
+      face(camera);
     },
   };
 }

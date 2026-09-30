@@ -12,5 +12,12 @@
     "poster": "/posters/margherita.webp",
     "target": "/targets/margherita.mind",
     "order": "https://biteme-blush.vercel.app/menu?dish=margherita"
+  },
+  "signature-smash": {
+    "label": "The BiteME Smash",
+    "sprite": "/sprites/signature-smash.webp",
+    "poster": "/posters/signature-smash.webp",
+    "target": "/targets/signature-smash.mind",
+    "order": "https://biteme-blush.vercel.app/menu?dish=signature-smash"
   }
 }
