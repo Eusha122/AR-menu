@@ -11,9 +11,11 @@
  *  - `sprite`: still background-free photo of a TALL dish (burger) — stands on the coaster facing
  *    the phone. Placeholder until a turntable `video` of the dish exists.
  *  - `model`: optional .glb 3D model; if set it's used instead of the others.
+ *  - `tall`: the dish is tall (burger) — a `video` dish then stands on the coaster instead of
+ *    being centred on it (so the printed photo underneath is covered).
  *  - `poster`: transparent image of the dish for the start screen and the dish list.
  */
-export type DishEntry = { label: string; video?: string; disc?: string; sprite?: string; model?: string; poster?: string; target: string; order: string };
+export type DishEntry = { label: string; video?: string; disc?: string; sprite?: string; model?: string; tall?: boolean; poster?: string; target: string; order: string };
 export type Manifest = Record<string, DishEntry>;
 
 const $ = <T extends Element>(sel: string) => document.querySelector(sel) as T;

@@ -34,7 +34,7 @@ export async function begin(dish: DishEntry, mediaUrl: string, targetUrl: string
         ? await discContent(mediaUrl)
         : dish.sprite
           ? await spriteContent(mediaUrl)
-          : await videoContent(mediaUrl);
+          : await videoContent(mediaUrl, dish.tall);
   } catch (err) {
     console.error(err);
     say("This dish couldn't be prepared on your phone. Try reloading the page.", true);
@@ -289,13 +289,9 @@ async function spriteContent(src: string): Promise<Content> {
   const geometry = new THREE.PlaneGeometry(WIDTH, height).translate(0, height / 2, 0);
   const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false, toneMapped: false, opacity: 0 });
   const mesh = new THREE.Mesh(geometry, material);
-  // Stand it where the printed dish's BOTTOM is (a little toward the coaster's lower, label edge —
-  // the edge that faces the diner), not at the centre: standing at the centre, the dish rose up
-  // from mid-coaster and the lower half of the printed photo peeked out underneath — two burgers.
-  const BASE_Y = -0.4; // just below the printed dish's bottom on make-coaster's layout (~-0.33), so none of it peeks out
-  mesh.position.set(0, BASE_Y, 0.01);
+  mesh.position.set(0, STAND_Y, 0.01);
   const shadow = contactShadow(WIDTH * 1.05);
-  shadow.position.y = BASE_Y;
+  shadow.position.y = STAND_Y;
 
   const root = new THREE.Group();
   root.add(shadow, mesh);
@@ -316,6 +312,15 @@ async function spriteContent(src: string): Promise<Content> {
 }
 
 /**
+ * Where a TALL dish stands: where the printed dish's BOTTOM is on the coaster (a little toward
+ * the lower, label edge — the edge facing the diner), not the centre. Standing at the centre, the
+ * dish rose up from mid-coaster and the lower half of the printed photo peeked out underneath —
+ * two burgers. make-coaster's layout puts that bottom at ~-0.33 coaster widths; just below it so
+ * none of the print shows.
+ */
+const STAND_Y = -0.4;
+
+/**
  * Keeps a flat picture square-on to the phone and upright on screen (a sprite): its local
  * rotation = inverse(parent's world rotation) × the camera's world rotation. Works from any
  * viewing angle — unlike turning it "toward the camera across the table", which swung sideways
@@ -331,7 +336,7 @@ function faceCamera(mesh: THREE.Object3D, parent: THREE.Object3D) {
   };
 }
 
-async function videoContent(src: string): Promise<Content> {
+async function videoContent(src: string, tall = false): Promise<Content> {
   const video = document.createElement("video");
   video.src = src;
   video.loop = true;
@@ -353,13 +358,18 @@ async function videoContent(src: string): Promise<Content> {
   const width = 1.05; // ~ the coaster's width, in mind-ar's target-relative units
   const height = width / (video.videoWidth / 2 / video.videoHeight);
 
-  // Shown as a SPRITE: square-on to the phone and upright on screen, centred over the coaster.
-  // Lying flat on the coaster stacked a second perspective on the filmed one, and turning it
-  // "toward the camera across the table" broke when the phone was held nearly overhead.
+  // Shown as a SPRITE: square-on to the phone and upright on screen. A flat dish (pizza) is
+  // centred over the coaster, covering its printed twin; a TALL one (burger) stands by its bottom
+  // edge at STAND_Y, like the sprite mode. Lying flat on the coaster stacked a second perspective
+  // on the filmed one, and turning it "toward the camera across the table" broke when the phone
+  // was held nearly overhead.
   const material = matteMaterial(texture);
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, height), material);
-  mesh.position.z = 0.03;
+  const geometry = new THREE.PlaneGeometry(width, height);
+  if (tall) geometry.translate(0, height / 2, 0);
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.set(0, tall ? STAND_Y : 0, 0.03);
   const shadow = contactShadow();
+  if (tall) shadow.position.y = STAND_Y;
 
   const root = new THREE.Group();
   root.add(shadow, mesh);

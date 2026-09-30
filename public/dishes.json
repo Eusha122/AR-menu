@@ -15,7 +15,8 @@
   },
   "signature-smash": {
     "label": "The BiteME Smash",
-    "sprite": "/sprites/signature-smash.webp",
+    "video": "/videos/signature-smash.mp4",
+    "tall": true,
     "poster": "/posters/signature-smash.webp",
     "target": "/targets/signature-smash.mind",
     "order": "https://biteme-blush.vercel.app/menu?dish=signature-smash"
