@@ -4,14 +4,25 @@
     "video": "/videos/truffle-pizza.mp4",
     "poster": "/posters/truffle-pizza.webp",
     "target": "/targets/truffle-pizza.mind",
-    "order": "https://biteme-blush.vercel.app/menu?dish=truffle-pizza"
+    "order": "https://biteme-blush.vercel.app/menu?dish=truffle-pizza",
+    "table": {
+      "kind": "disc",
+      "diameterM": 0.3,
+      "texture": "/discs/truffle-pizza.webp",
+      "model": "/models/truffle-pizza.glb"
+    }
   },
   "margherita": {
     "label": "Margherita",
     "disc": "/discs/margherita.webp",
     "poster": "/posters/margherita.webp",
     "target": "/targets/margherita.mind",
-    "order": "https://biteme-blush.vercel.app/menu?dish=margherita"
+    "order": "https://biteme-blush.vercel.app/menu?dish=margherita",
+    "table": {
+      "kind": "disc",
+      "diameterM": 0.3,
+      "model": "/models/margherita.glb"
+    }
   },
   "signature-smash": {
     "label": "The BiteME Smash",
@@ -19,5 +30,72 @@
     "poster": "/posters/signature-smash.webp",
     "target": "/targets/signature-smash.mind",
     "order": "https://biteme-blush.vercel.app/menu?dish=signature-smash"
+  },
+  "tonkotsu-ramen": {
+    "label": "Tonkotsu Ramen",
+    "bowl": {
+      "texture": "/bowls/tonkotsu-ramen.webp",
+      "image": [
+        1024,
+        1024
+      ],
+      "center": [
+        512,
+        502.8
+      ],
+      "radiusPx": 413.5,
+      "elevationDeg": 42.58,
+      "depth": 1,
+      "outer": [
+        [
+          0.999,
+          0
+        ],
+        [
+          0.9452,
+          0.1111
+        ],
+        [
+          0.8836,
+          0.2222
+        ],
+        [
+          0.8193,
+          0.3333
+        ],
+        [
+          0.7517,
+          0.4444
+        ],
+        [
+          0.6801,
+          0.5556
+        ],
+        [
+          0.5937,
+          0.6667
+        ],
+        [
+          0.4977,
+          0.7778
+        ],
+        [
+          0.4132,
+          0.8889
+        ],
+        [
+          0.3472,
+          1
+        ]
+      ]
+    },
+    "poster": "/posters/tonkotsu-ramen.webp",
+    "target": "/targets/tonkotsu-ramen.mind",
+    "order": "https://biteme-blush.vercel.app/menu?dish=tonkotsu-ramen",
+    "table": {
+      "kind": "bowl",
+      "diameterM": 0.2,
+      "model": "/models/tonkotsu-ramen.glb"
+    }
   }
 }

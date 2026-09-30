@@ -120,6 +120,41 @@ Then add it to `dishes.json` with `"disc": "/discs/<dish>.webp"` (plus coaster, 
 usual). Check it first at `/preview.html?disc=/discs/<dish>.webp&elev=40` (dev server; `elev` =
 camera height in degrees, `angle` freezes the turn).
 
+## View on your table (real table AR, no coaster)
+
+Dishes with real 3D (disc and bowl dishes) also get **"View on your table"**: the phone's own AR
+(Android Scene Viewer / WebXR, iPhone Quick Look) via Google's `<model-viewer>`, vendored in
+`vendor/model-viewer/` (self-contained, with its own newer three.js — mind-ar needs the older one).
+It finds the real table and places the dish at **true size**, with rock-solid tracking and the
+room's own lighting. The coaster stays available as "Scan the coaster instead".
+
+On the start screen the photo becomes a live 3D view you can spin; the table button only appears
+on phones that can do AR. The coaster tracker only downloads if the guest picks the coaster.
+
+To add a dish to table AR:
+1. Give it a `disc` or `bowl` (below), then add
+   `"table": { "kind": "disc", "diameterM": 0.3, "model": "/models/<dish>.glb" }` to dishes.json
+   (`kind: "bowl"` for bowls; `diameterM` = real size in metres; for a disc dish whose coaster view
+   uses a video, also give `"texture": "/discs/<dish>.webp"`).
+2. `npm run dev`, open `/tools/export.html`, click **Export all**, save the `.glb` files into
+   `public/models/`. They're built by the same code as the coaster view, at real size, with JPEG
+   textures and no mesh compression (the phones' AR viewers don't all support those). ~350 KB each.
+
+The burger has no table AR: tall food needs a real 3D model (a scan), not one rebuilt from a photo.
+
+## Bowl dishes — real 3D from ONE photo (ramen, pho, curry, rice bowls)
+
+```
+npm run make-bowl -- tonkotsu-ramen --photo=../biteme/public/menu/tonkotsu-ramen.webp
+```
+Measures the photo (`scripts/make-bowl.mjs`) and prints the `"bowl"` entry for dishes.json:
+the camera angle (from the rim's ellipse, fitted row by row), the rim's centre and size, and the
+bowl's profile — each depth's radius is the largest ring that fits inside the outline (the
+outline is the union of all rings, so reading it directly overstates the bottom). `src/bowl.ts`
+rebuilds the bowl and projects the photo back onto it from that same camera angle, so soup and
+toppings land on the soup surface; the outside wall is wrapped from the front of the glaze.
+Check it at `/preview.html?bowl=<dish>&elev=40&angle=90`.
+
 ## Which mode for which dish
 
 | Dish shape | Mode | Why |

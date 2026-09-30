@@ -2,6 +2,7 @@ import * as THREE from "three";
 import type { MindARThree as MindARThreeInstance } from "../vendor/mind-ar/mindar-image-three.prod.js";
 
 type MindARThreeClass = typeof MindARThreeInstance;
+import { buildBowl, BOWL_TURN_SECONDS, type BowlSpec } from "./bowl";
 import { buildDisc, discLights, DISC_TURN_SECONDS } from "./disc";
 import { cameraFailed, container, orderBar, say, scanning, setButton, startScreen, type DishEntry } from "./ui";
 
@@ -30,6 +31,8 @@ export async function begin(dish: DishEntry, mediaUrl: string, targetUrl: string
   try {
     content = dish.model
       ? await modelContent(mediaUrl)
+      : dish.bowl
+        ? await bowlContent(mediaUrl, dish.bowl)
       : dish.disc
         ? await discContent(mediaUrl)
         : dish.sprite
@@ -266,6 +269,41 @@ async function discContent(src: string): Promise<Content> {
     tick: (dt) => {
       fade.tick(dt);
       disc.spin.rotation.z += (dt * Math.PI * 2) / DISC_TURN_SECONDS;
+    },
+  };
+}
+
+/**
+ * Bowl mode: a dish in a round bowl (ramen, pho, curry) rebuilt as real 3D from one angled photo
+ * (see bowl.ts / scripts/make-bowl.mjs). It sits on the coaster and turns slowly.
+ */
+async function bowlContent(src: string, spec: BowlSpec): Promise<Content> {
+  const texture = await new THREE.TextureLoader().loadAsync(src);
+  const DIAMETER = 0.95; // rim about the coaster's width, like the printed dish
+  const bowl = buildBowl(texture, spec, DIAMETER);
+  const shadow = contactShadow(DIAMETER * 0.9); // the foot is narrower than the rim
+  const root = new THREE.Group();
+  root.add(shadow, bowl.object, discLights());
+
+  // A bowl overlaps itself (inside/outside walls), which transparent rendering can sort wrongly —
+  // so it's only transparent while fading in, and a plain opaque object once fully shown.
+  const fade = fader((o) => {
+    const see = o < 1;
+    if (bowl.material.transparent !== see) {
+      bowl.material.transparent = see;
+      bowl.material.needsUpdate = true;
+    }
+    bowl.material.opacity = o;
+    (shadow.material as THREE.MeshBasicMaterial).opacity = o;
+  });
+  fade.hide();
+  return {
+    object: root,
+    onFound: fade.show,
+    onLost: fade.hide,
+    tick: (dt) => {
+      fade.tick(dt);
+      bowl.spin.rotation.z += (dt * Math.PI * 2) / BOWL_TURN_SECONDS;
     },
   };
 }

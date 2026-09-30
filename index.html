@@ -43,14 +43,20 @@
     #start h1 { margin: 0 0 8px; font-size: clamp(30px, 8.5vw, 44px); line-height: 1.02; font-weight: 900; letter-spacing: -.01em; }
     #start-copy { margin: 0 0 22px; font-size: 16px; font-weight: 600; line-height: 1.5; max-width: 44ch; color: var(--ink-2); }
     #start-copy.err { color: var(--tomato-deep); font-weight: 700; }
-    #start-btn {
+    #start-btn, #table-btn {
       appearance: none; border: 0; border-radius: 999px; padding: 17px 30px; width: 100%; max-width: 380px;
       background: var(--tomato); color: var(--page); font: inherit; font-size: 17px; font-weight: 800;
       box-shadow: 0 5px 0 var(--tomato-deep); cursor: pointer;
     }
-    #start-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--tomato-deep); }
+    #start-btn:active, #table-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--tomato-deep); }
     #start-btn:disabled { opacity: .75; cursor: progress; }
-    #start-btn:focus-visible, .dish-list a:focus-visible, #order a:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+    /* when the dish can go on the real table, that's the main button and the coaster is the fallback */
+    #start-btn.secondary { background: transparent; color: var(--ink); border: 2px solid var(--ink); box-shadow: none; margin-top: 10px; }
+    #start-btn.secondary:active { transform: translateY(2px); }
+    #table-btn[hidden] { display: none; }
+    /* live 3D view of the dish on the start screen (table dishes) */
+    .dish-3d { width: calc(100% + 48px); margin: 0 -24px; max-width: none; height: min(46vh, 440px); background: transparent; --poster-color: transparent; --progress-bar-color: var(--tomato); }
+    #start-btn:focus-visible, #table-btn:focus-visible, .dish-list a:focus-visible, #order a:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
     .fine { margin: 14px 0 0; font-size: 12px; font-weight: 600; color: var(--ink-2); opacity: .8; }
 
     /* landing page: list of dishes */
@@ -113,6 +119,7 @@
     <h1 id="start-title">See it on your table</h1>
     <p id="start-copy">Loading…</p>
     <ul id="dish-list" class="dish-list" hidden></ul>
+    <button id="table-btn" type="button" hidden>View on your table</button>
     <button id="start-btn" type="button" disabled>Loading…</button>
     <p class="fine" id="fine">Works in your phone's browser — no app needed. Your camera view never leaves your phone.</p>
   </main>

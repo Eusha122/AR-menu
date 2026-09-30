@@ -10,7 +10,8 @@
     "preview": "vite preview --host",
     "prep-dish": "node scripts/prep-dish.mjs",
     "make-coaster": "node scripts/make-coaster.mjs",
-    "make-disc": "node scripts/make-disc.mjs"
+    "make-disc": "node scripts/make-disc.mjs",
+    "make-bowl": "node scripts/make-bowl.mjs"
   },
   "dependencies": {
     "three": "0.161.0"

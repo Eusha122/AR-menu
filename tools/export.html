@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Export table-AR models</title>
+  <style>body { font-family: Arial, sans-serif; margin: 40px; color: #2a1a10; background: #f0e4d2; }</style>
+</head>
+<body>
+  <h1>Export table-AR models</h1>
+  <p>Dev tool (npm run dev → /tools/export.html). Builds every dish that has a <code>"table"</code>
+     entry in dishes.json with the same code as the AR view, at real size, and downloads it as a
+     .glb for the phone's own AR (Scene Viewer / Quick Look). Save them into <code>public/models/</code>.</p>
+  <button id="go">Export all</button>
+  <pre id="log"></pre>
+  <script type="module" src="/src/export.ts"></script>
+</body>
+</html>

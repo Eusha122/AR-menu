@@ -1,4 +1,4 @@
-import { dishList, fine, orderLink, poster, say, setButton, startBtn, startTitle, type DishEntry, type Manifest } from "./ui";
+import { dishList, fine, orderLink, poster, say, setButton, startBtn, startTitle, tableBtn, type DishEntry, type Manifest } from "./ui";
 
 /*
  * Entry point. Deliberately tiny (no three.js): it renders the start screen immediately, then
@@ -97,16 +97,48 @@ function showDish(dish: DishEntry) {
     poster.hidden = false;
   }
 
+  if (dish.table) void showTable(dish);
+
   if (!navigator.mediaDevices?.getUserMedia) {
+    if (dish.table) {
+      startBtn.hidden = true; // the 3D view above still works on a computer
+      say("Spin the dish with your finger or mouse. Open this page on your phone to put it on your table.");
+      return;
+    }
     say("This needs a phone camera. Open this page on your phone — scan the QR code on the coaster.", true);
     setButton("Camera not available", false);
     fine.hidden = true;
     return;
   }
 
-  say("Point your camera at the coaster on your table and watch this dish appear on it.");
+  if (dish.table) {
+    // Table AR is the main path here; the coaster is the alternative. Its tracker and media only
+    // download if the guest actually picks it — no wasted mobile data for everyone else.
+    say("See it on your real table at real size — or use the coaster.");
+    startBtn.classList.add("secondary");
+    setButton("Scan the coaster instead", true, () => {
+      const assets = loadCoaster(dish);
+      assets.then(([mediaUrl, targetUrl, { MindARThree }, ar]) => void ar.begin(dish, mediaUrl, targetUrl, MindARThree), coasterFailed);
+    });
+    return;
+  }
 
-  // Everything heavy starts downloading NOW, in parallel. Progress covers the two big files.
+  say("Point your camera at the coaster on your table and watch this dish appear on it.");
+  loadCoaster(dish).then(
+    ([mediaUrl, targetUrl, { MindARThree }, ar]) =>
+      setButton("Start camera", true, () => void ar.begin(dish, mediaUrl, targetUrl, MindARThree)),
+    coasterFailed,
+  );
+}
+
+function coasterFailed(err: unknown) {
+  console.error(err);
+  say("Couldn't download this dish. Check your connection and try again.", true);
+  setButton("Try again", true, () => location.reload());
+}
+
+/** Coaster AR's downloads, in parallel, with progress on the button. */
+function loadCoaster(dish: DishEntry) {
   const sizes = new Map<string, [number, number]>();
   const progress = (key: string) => (loaded: number, total: number) => {
     sizes.set(key, [loaded, total]);
@@ -118,22 +150,62 @@ function showDish(dish: DishEntry) {
     }
     if (t) setButton(`Loading… ${Math.min(99, Math.round((l / t) * 100))}%`, false);
   };
-  const assets = Promise.all([
-    preload(dish.model ?? dish.disc ?? dish.sprite ?? dish.video!, progress("media")),
+  setButton("Loading…", false);
+  return Promise.all([
+    preload(dish.model ?? dish.bowl?.texture ?? dish.disc ?? dish.sprite ?? dish.video!, progress("media")),
     preload(dish.target, progress("target")),
     import("../vendor/mind-ar/mindar-image-three.prod.js"),
     import("./ar"),
   ]);
+}
 
-  assets.then(
-    ([mediaUrl, targetUrl, { MindARThree }, ar]) =>
-      setButton("Start camera", true, () => void ar.begin(dish, mediaUrl, targetUrl, MindARThree)),
-    (err) => {
-      console.error(err);
-      say("Couldn't download this dish. Check your connection and try again.", true);
-      setButton("Try again", true, () => location.reload());
-    },
-  );
+/**
+ * "View on your table": the phone's own AR (Android Scene Viewer / WebXR, iPhone Quick Look)
+ * through Google's <model-viewer>, which finds the real table and places the dish at true size.
+ * Its self-contained build (with its own, newer three.js — mind-ar needs the older one) is
+ * vendored and only loaded for dishes that have a table model.
+ *
+ * The start screen's photo becomes a live 3D view of the dish you can spin; the table button
+ * appears only on phones that can actually do AR.
+ */
+async function showTable(dish: DishEntry) {
+  const table = dish.table!;
+  await import("../vendor/model-viewer/model-viewer.min.js");
+  type ModelViewer = HTMLElement & { canActivateAR: boolean; activateAR: () => Promise<void> };
+  const mv = document.createElement("model-viewer") as ModelViewer;
+  const attrs: Record<string, string> = {
+    src: table.model,
+    alt: `${dish.label}, in 3D`,
+    poster: dish.poster ?? "",
+    ar: "",
+    "ar-modes": "webxr scene-viewer quick-look",
+    "ar-scale": "fixed", // true size — a 30 cm pizza is 30 cm on the table
+    "camera-controls": "",
+    "auto-rotate": "",
+    "rotation-per-second": "18deg",
+    "auto-rotate-delay": "0",
+    "interaction-prompt": "none",
+    "camera-orbit": "0deg 58deg auto",
+    "shadow-intensity": "1",
+    "shadow-softness": "0.9",
+    "environment-image": "neutral",
+    exposure: "1.05",
+    "touch-action": "pan-y",
+  };
+  for (const [k, v] of Object.entries(attrs)) mv.setAttribute(k, v);
+  mv.className = "dish-3d";
+  // model-viewer's own little AR icon would duplicate our big "View on your table" button
+  const noIcon = document.createElement("span");
+  noIcon.slot = "ar-button";
+  noIcon.hidden = true;
+  mv.append(noIcon);
+  poster.replaceWith(mv);
+
+  mv.addEventListener("load", () => {
+    if (!mv.canActivateAR) return;
+    tableBtn.hidden = false;
+    tableBtn.onclick = () => void mv.activateAR();
+  });
 }
 
 main();

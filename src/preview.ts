@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { buildBowl, type BowlSpec } from "./bowl";
 import { buildDisc, discLights } from "./disc";
 
 // Dev-only viewer for judging a dish before it goes into dishes.json, with the same materials
@@ -12,7 +13,7 @@ const disc = params.get("disc");
 const fixedAngle = params.get("angle");
 const elev = (Number(params.get("elev") ?? 40) * Math.PI) / 180;
 
-document.getElementById("label")!.textContent = disc ?? src ?? "";
+document.getElementById("label")!.textContent = params.get("bowl") ?? disc ?? src ?? "";
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -32,7 +33,23 @@ const spin = new THREE.Group();
 scene.add(spin);
 const ready = () => ((window as unknown as { ready: boolean }).ready = true);
 
-if (disc) {
+const bowl = params.get("bowl"); // a dish slug from dishes.json whose entry has a "bowl" spec
+if (bowl) {
+  const zUp = new THREE.Group();
+  zUp.rotation.x = -Math.PI / 2;
+  scene.add(zUp);
+  zUp.add(discLights());
+  fetch("/dishes.json")
+    .then((r) => r.json())
+    .then(async (m: Record<string, { bowl?: BowlSpec }>) => {
+      const spec = m[bowl].bowl!;
+      const tex = await new THREE.TextureLoader().loadAsync(spec.texture);
+      const bw = buildBowl(tex, spec, 1.0);
+      zUp.add(bw.object);
+      spinTarget = bw.spin;
+      ready();
+    });
+} else if (disc) {
   // disc.ts builds Z-up (the AR anchor's convention); this scene is Y-up
   const zUp = new THREE.Group();
   zUp.rotation.x = -Math.PI / 2;
