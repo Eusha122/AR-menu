@@ -1,0 +1,4 @@
+rembg[cpu]
+numpy
+pillow
+scipy

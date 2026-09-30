@@ -107,7 +107,34 @@ Check specifically:
 
 **7. Print the coaster**, cut it to size, put it on the table with its QR code visible.
 
-## 3D models (preferred over video)
+## Professional transparent video (AI matte) — the best way to make a dish video
+
+`prep-dish`'s ffmpeg keying is the quick path; for a production-quality cut-out use the AI matte
+pipeline in `scripts/ai-matte/` (free, runs locally — Python 3.11+):
+
+```
+python -m venv .venv && .venv/Scripts/python -m pip install -r scripts/ai-matte/requirements.txt
+# 1. frames from the raw clip (dish rotating on PURE black, camera still)
+ffmpeg -i raw/<dish>.mp4 -vsync 0 work/<dish>/src/%03d.png
+# 2. precise per-frame matte (BiRefNet) + edge colour decontamination   (~20 s/frame on CPU)
+.venv/Scripts/python scripts/ai-matte/matte.py work/<dish>
+# 3. remove the blocky compression band AI video leaves around the edge, floating crumbs, pinholes
+.venv/Scripts/python scripts/ai-matte/cleanup.py work/<dish>
+# 4. crop tight to the dish, colour|matte side by side, drop the duplicate loop frame
+.venv/Scripts/python scripts/ai-matte/compose.py work/<dish>
+# 5. encode for phones
+ffmpeg -framerate 24 -i work/<dish>/sbs/%03d.png -vf "scale='min(2048,iw)':-2" -c:v libx264 -crf 18 -pix_fmt yuv420p -movflags +faststart public/videos/<dish>.mp4
+```
+
+Needs `mkdir work/<dish>/{src,rgb,alpha}` first. BiRefNet's model (~1 GB) downloads on first run.
+It runs on CPU on purpose: at full resolution it doesn't fit in an 8 GB GPU through DirectML.
+
+The viewer shows the video as a sprite — always square-on to the phone and upright on screen,
+centred over the coaster, with a soft contact shadow underneath. (Lying flat on the coaster
+double-counts the filmed perspective; turning it "toward the camera across the table" breaks when
+the phone is held nearly overhead. See `videoContent` in `src/main.ts`.)
+
+## 3D models
 
 A dish can use a `.glb` 3D model instead of (or as well as) a video — set `"model"` in
 `dishes.json`; if both are set, the model wins. A real 3D object is correct from every angle and

@@ -14,7 +14,7 @@ import { MindARThree } from "../vendor/mind-ar/mindar-image-three.prod.js";
 type DishEntry = { label: string; video?: string; model?: string; target: string; order: string };
 
 /** What each render mode hands back to the shared AR loop. */
-type Content = { object: THREE.Object3D; onFound?: () => void; tick?: (dt: number) => void };
+type Content = { object: THREE.Object3D; onFound?: () => void; tick?: (dt: number, camera: THREE.Camera) => void };
 
 const $ = <T extends Element>(sel: string) => document.querySelector(sel) as T;
 
@@ -147,7 +147,7 @@ async function startAR(dish: DishEntry) {
   // stacking a second, independent motion on top of it compounded into visibly worse shaking.
   const clock = new THREE.Clock();
   renderer.setAnimationLoop(() => {
-    content.tick?.(Math.min(clock.getDelta(), 0.1));
+    content.tick?.(Math.min(clock.getDelta(), 0.1), camera);
     renderer.render(scene, camera);
   });
 }
@@ -238,15 +238,33 @@ async function videoContent(src: string): Promise<Content> {
 
   // the video is RGB|matte side by side, so the dish itself is only the left half as wide
   const dishAspect = video.videoWidth / 2 / video.videoHeight;
-  const width = 1.1; // ~ the coaster's own width, in mind-ar's target-relative units
+  const width = 1.05; // ~ the coaster's own width, in mind-ar's target-relative units
   const height = width / dishAspect;
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, height), matteMaterial(texture));
-  // Floats just above the coaster. NOTE: verify this on a real phone before shipping — if the
-  // dish appears to lie flat/sideways instead of standing up facing the camera, this is the
-  // line to change (try `mesh.rotation.x = -Math.PI / 2` and adjust position.z accordingly).
-  mesh.position.z = height / 2 + 0.1;
 
-  return { object: mesh, onFound: () => void video.play().catch(() => {}) };
+  // The clip is a pre-filmed view of the dish, so it's shown as a SPRITE: always square-on to the
+  // phone and upright on the screen, centred over the coaster. Two approaches that failed first:
+  //  - lying flat on the coaster: stacked a second perspective on top of the filmed one;
+  //  - standing up and turning toward the camera across the table: from a phone held nearly
+  //    overhead, "the direction across the table" is ill-defined and the plane swung sideways.
+  // Copying the camera's own orientation has neither problem, from any viewing angle.
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, height), matteMaterial(texture));
+  mesh.position.z = 0.03; // just above the coaster so the shadow reads underneath
+
+  const root = new THREE.Group();
+  root.add(contactShadow(), mesh);
+
+  const camQ = new THREE.Quaternion();
+  const parentQ = new THREE.Quaternion();
+  return {
+    object: root,
+    onFound: () => void video.play().catch(() => {}),
+    tick: (_dt, camera) => {
+      // local rotation = inverse(parent's world rotation) × camera's world rotation
+      camera.getWorldQuaternion(camQ);
+      root.getWorldQuaternion(parentQ);
+      mesh.quaternion.copy(parentQ.invert().multiply(camQ));
+    },
+  };
 }
 
 main();

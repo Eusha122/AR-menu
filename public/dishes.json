@@ -1,7 +1,6 @@
 {
   "truffle-pizza": {
     "label": "Truffle Pizza",
-    "model": "/models/truffle-pizza.glb",
     "video": "/videos/truffle-pizza.mp4",
     "target": "/targets/truffle-pizza.mind",
     "order": "https://biteme-blush.vercel.app/menu?dish=truffle-pizza"
