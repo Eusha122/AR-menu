@@ -2,8 +2,8 @@ import * as THREE from "three";
 import type { MindARThree as MindARThreeInstance } from "../vendor/mind-ar/mindar-image-three.prod.js";
 
 type MindARThreeClass = typeof MindARThreeInstance;
-import { buildBowl, BOWL_TURN_SECONDS, type BowlSpec } from "./bowl";
-import { buildDisc, discLights, DISC_TURN_SECONDS } from "./disc";
+import { discLights } from "./disc";
+import { build3D, has3D, type Shape3D } from "./dish3d";
 import { cameraFailed, container, orderBar, say, scanning, setButton, startScreen, type DishEntry } from "./ui";
 
 /**
@@ -31,10 +31,8 @@ export async function begin(dish: DishEntry, mediaUrl: string, targetUrl: string
   try {
     content = dish.model
       ? await modelContent(mediaUrl)
-      : dish.bowl
-        ? await bowlContent(mediaUrl, dish.bowl)
-      : dish.disc
-        ? await discContent(mediaUrl)
+      : has3D(dish)
+        ? await shapeContent(mediaUrl, dish)
         : dish.sprite
           ? await spriteContent(mediaUrl)
           : await videoContent(mediaUrl);
@@ -243,57 +241,29 @@ function fader(apply: (o: number) => void) {
 }
 
 /**
- * Disc mode: a round flat dish rebuilt as real 3D from one top-down photo (see disc.ts). It lies
- * ON the coaster and turns slowly like a display turntable — physically what a pizza on a
- * turntable does, so it looks right from any seat.
+ * 3D mode: a dish rebuilt as real 3D from its one menu photo (see dish3d.ts) — a pizza, a bowl
+ * (ramen, curry, drinks) or a stack (burger). It sits ON the coaster and turns slowly, like a
+ * dish on a display turntable, so it looks right from any seat.
  */
-async function discContent(src: string): Promise<Content> {
-  const texture = await new THREE.TextureLoader().loadAsync(src);
-  const DIAMETER = 0.95; // about the coaster (1 = coaster width): sits on it like the printed dish; bigger overflowed the screen up close
-  const disc = buildDisc(texture, DIAMETER);
-  disc.material.transparent = true;
-  disc.material.opacity = 0;
-  const shadow = contactShadow(DIAMETER * 1.12);
-
+async function shapeContent(src: string, dish: Shape3D): Promise<Content> {
+  // about the coaster (1 = coaster width), like the printed dish. A burger is as tall as it is
+  // wide, so it's smaller — full size it towered over the coaster and filled the screen.
+  const DIAMETER = dish.stack ? 0.7 : 0.95;
+  const d3 = await build3D(dish, DIAMETER, src);
+  // a pizza's shadow is as wide as the pizza; a bowl's or burger's foot is narrower
+  const shadow = contactShadow(DIAMETER * (dish.disc ? 1.12 : 0.9));
   const root = new THREE.Group();
-  root.add(shadow, disc.object, discLights());
+  root.add(shadow, d3.object, discLights());
 
-  const fade = fader((o) => {
-    disc.material.opacity = o;
-    (shadow.material as THREE.MeshBasicMaterial).opacity = o;
-  });
-  return {
-    object: root,
-    onFound: fade.show,
-    onLost: fade.hide,
-    tick: (dt) => {
-      fade.tick(dt);
-      disc.spin.rotation.z += (dt * Math.PI * 2) / DISC_TURN_SECONDS;
-    },
-  };
-}
-
-/**
- * Bowl mode: a dish in a round bowl (ramen, pho, curry) rebuilt as real 3D from one angled photo
- * (see bowl.ts / scripts/make-bowl.mjs). It sits on the coaster and turns slowly.
- */
-async function bowlContent(src: string, spec: BowlSpec): Promise<Content> {
-  const texture = await new THREE.TextureLoader().loadAsync(src);
-  const DIAMETER = 0.95; // rim about the coaster's width, like the printed dish
-  const bowl = buildBowl(texture, spec, DIAMETER);
-  const shadow = contactShadow(DIAMETER * 0.9); // the foot is narrower than the rim
-  const root = new THREE.Group();
-  root.add(shadow, bowl.object, discLights());
-
-  // A bowl overlaps itself (inside/outside walls), which transparent rendering can sort wrongly —
-  // so it's only transparent while fading in, and a plain opaque object once fully shown.
+  // A 3D dish overlaps itself (bowl walls, burger layers), which transparent rendering can sort
+  // wrongly — so it's only transparent while fading in, and a plain opaque object once shown.
   const fade = fader((o) => {
     const see = o < 1;
-    if (bowl.material.transparent !== see) {
-      bowl.material.transparent = see;
-      bowl.material.needsUpdate = true;
+    if (d3.material.transparent !== see) {
+      d3.material.transparent = see;
+      d3.material.needsUpdate = true;
     }
-    bowl.material.opacity = o;
+    d3.material.opacity = o;
     (shadow.material as THREE.MeshBasicMaterial).opacity = o;
   });
   fade.hide();
@@ -303,7 +273,7 @@ async function bowlContent(src: string, spec: BowlSpec): Promise<Content> {
     onLost: fade.hide,
     tick: (dt) => {
       fade.tick(dt);
-      bowl.spin.rotation.z += (dt * Math.PI * 2) / BOWL_TURN_SECONDS;
+      d3.spin.rotation.z += (dt * Math.PI * 2) / d3.turnSeconds;
     },
   };
 }

@@ -1,7 +1,6 @@
 import * as THREE from "three";
 import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
-import { buildBowl, type BowlSpec } from "./bowl";
-import { buildDisc } from "./disc";
+import { build3D, textureOf, type Shape3D } from "./dish3d";
 
 /*
  * Dev tool: turns the coaster view's 3D dishes into .glb files for "View on your table" — the
@@ -14,17 +13,16 @@ import { buildDisc } from "./disc";
  *   support compressed meshes or WebP, and these models are small anyway.
  */
 
-type Table = { kind: "disc" | "bowl"; diameterM: number; texture?: string; model: string };
-type Entry = { label: string; disc?: string; bowl?: BowlSpec; table?: Table };
+type Table = { kind: "disc" | "bowl" | "stack"; diameterM: number; texture?: string; model: string };
+type Entry = Shape3D & { label: string; table?: Table };
 
 const log = (s: string) => (document.getElementById("log")!.textContent += s + "\n");
 
 async function build(entry: Entry): Promise<THREE.Object3D> {
   const t = entry.table!;
-  const texUrl = t.kind === "bowl" ? entry.bowl!.texture : (t.texture ?? entry.disc!);
-  const texture = await new THREE.TextureLoader().loadAsync(texUrl);
-  texture.userData.mimeType = "image/jpeg"; // GLTFExporter writes PNG otherwise (several × larger)
-  const dish = t.kind === "bowl" ? buildBowl(texture, entry.bowl!, 1) : buildDisc(texture, 1);
+  // a disc dish whose coaster view is a video names its top-down texture in table.texture
+  const dish = await build3D(entry, 1, t.texture ?? textureOf(entry));
+  dish.material.map!.userData.mimeType = "image/jpeg"; // GLTFExporter writes PNG otherwise (several × larger)
   // builders were given diameter 1, so scaling by the real diameter gives metres; tip Z-up → Y-up
   const root = new THREE.Group();
   root.rotation.x = -Math.PI / 2;

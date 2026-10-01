@@ -128,8 +128,16 @@ Dishes with real 3D (disc and bowl dishes) also get **"View on your table"**: th
 It finds the real table and places the dish at **true size**, with rock-solid tracking and the
 room's own lighting. The coaster stays available as "Scan the coaster instead".
 
-On the start screen the photo becomes a live 3D view you can spin; the table button only appears
-on phones that can do AR. The coaster tracker only downloads if the guest picks the coaster.
+On the start screen the photo becomes a live 3D view you can spin. The coaster tracker only
+downloads if the guest picks the coaster.
+
+**The table button only appears on phones that can really do it** (`canUseTableAR` in
+`src/main.ts`) — otherwise the coaster is the main button. `<model-viewer>` alone says "AR
+available" on every Android in Chrome, so the phone is asked directly: Android must report
+immersive AR through WebXR (true only on Google-AR / ARCore phones), iPhone Safari must support
+Quick Look links. Apps' built-in browsers (Instagram, Facebook, TikTok…) block the hand-off, so
+they get the coaster too. If AR still fails after tapping, the phone is remembered (localStorage)
+and never offered the button again.
 
 To add a dish to table AR:
 1. Give it a `disc` or `bowl` (below), then add
@@ -141,6 +149,19 @@ To add a dish to table AR:
    textures and no mesh compression (the phones' AR viewers don't all support those). ~350 KB each.
 
 The burger has no table AR: tall food needs a real 3D model (a scan), not one rebuilt from a photo.
+
+## Stack dishes — a burger as real 3D from ONE side photo
+
+```
+npm run make-stack -- signature-smash --photo=../biteme/public/menu/signature-smash.webp
+```
+Prints the `"stack"` entry for dishes.json (`scripts/make-stack.mjs`, built in `src/stack.ts`):
+the burger is measured as a stack of horizontal rings (each row's radius = the largest ring that
+fits inside the outline). The camera angle can't be read off a rim, so it's chosen so the base
+the burger stands on is 70% of the bottom bun's width (a real bun's rounded bottom; `--base=`).
+The top bun is fitted as a smooth dome, the photo is wrapped round the sides from the front, and
+the crown uses an enlarged patch of plain bun so the photo's glossy highlights don't streak.
+On the coaster it's 70% of the coaster's width; for table AR it's exported at 12 cm.
 
 ## Bowl dishes — real 3D from ONE photo (ramen, pho, curry, rice bowls)
 

@@ -1,4 +1,5 @@
 import type { BowlSpec } from "./bowl";
+import type { StackSpec } from "./stack";
 
 /**
  * Shared page UI: the DOM, status text, and error messages. Kept free of three.js so the start
@@ -12,14 +13,16 @@ import type { BowlSpec } from "./bowl";
  *    and turned on the coaster. Best for pizza, thali, flatbreads. Preferred over `video`.
  *  - `bowl`: a dish in a round bowl (ramen) — measurements from scripts/make-bowl.mjs; rebuilt as
  *    real 3D with the photo projected back onto it.
+ *  - `stack`: a round, stacked dish (burger) — measurements from scripts/make-stack.mjs; rebuilt
+ *    as real 3D from the side photo.
  *  - `sprite`: still background-free photo of a TALL dish (burger) — stands on the coaster facing
  *    the phone. Placeholder until a turntable `video` of the dish exists.
  *  - `model`: optional .glb 3D model; if set it's used instead of the others.
  *  - `poster`: transparent image of the dish for the start screen and the dish list.
  */
-export type DishEntry = { label: string; video?: string; disc?: string; bowl?: BowlSpec; sprite?: string; model?: string; table?: TableEntry; poster?: string; target: string; order: string };
+export type DishEntry = { label: string; video?: string; disc?: string; bowl?: BowlSpec; stack?: StackSpec; sprite?: string; model?: string; table?: TableEntry; poster?: string; target: string; order: string };
 /** "View on your table" — a real-size .glb for the phone's own AR (made by /tools/export.html). */
-export type TableEntry = { kind: "disc" | "bowl"; diameterM: number; texture?: string; model: string };
+export type TableEntry = { kind: "disc" | "bowl" | "stack"; diameterM: number; texture?: string; model: string };
 export type Manifest = Record<string, DishEntry>;
 
 const $ = <T extends Element>(sel: string) => document.querySelector(sel) as T;
