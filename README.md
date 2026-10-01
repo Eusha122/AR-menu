@@ -128,8 +128,10 @@ Dishes with real 3D (disc and bowl dishes) also get **"View on your table"**: th
 It finds the real table and places the dish at **true size**, with rock-solid tracking and the
 room's own lighting. The coaster stays available as "Scan the coaster instead".
 
-The start screen always shows the dish photo; `<model-viewer>` is invisible and only hands off
-to the phone's AR app (Scene Viewer / Quick Look). The coaster tracker only downloads if the
+The start screen always shows the dish photo; `<model-viewer>` is invisible until "View on your
+table" is tapped. On Android it then runs AR inside Chrome (WebXR, model-viewer's own viewer — the
+element goes full-screen for the session and hides again on exit); phones without WebXR get
+Google's Scene Viewer app, iPhones get Quick Look. The coaster tracker only downloads if the
 guest picks the coaster.
 
 **The table button only appears on phones that can really do it** (`canUseTableAR` in

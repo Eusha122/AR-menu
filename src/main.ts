@@ -217,9 +217,12 @@ function loadCoaster(dish: DishEntry) {
  * self-contained build (with its own, newer three.js — mind-ar needs the older one) is vendored
  * and only loaded for dishes that have a table model.
  *
- * The start screen keeps the dish PHOTO: <model-viewer> is only the hand-off to the AR app, so
- * it's invisible. That's also why WebXR isn't one of its modes — WebXR draws AR inside the element
- * itself. The table button appears only on phones that can actually do AR (canUseTableAR).
+ * The start screen keeps the dish PHOTO: <model-viewer> stays invisible until the guest taps
+ * "View on your table". On Android it then runs AR right inside Chrome (WebXR: model-viewer's
+ * own viewer — tap to place, stays in the website). WebXR draws inside the element itself, so the
+ * element is made full-screen for the session and hidden again when the guest exits. Phones
+ * without WebXR fall back to Google's Scene Viewer app; iPhones use Quick Look.
+ * The table button appears only on phones that can actually do AR (canUseTableAR).
  */
 async function showTable(dish: DishEntry, tableAR: Promise<boolean>) {
   const table = dish.table!;
@@ -229,17 +232,19 @@ async function showTable(dish: DishEntry, tableAR: Promise<boolean>) {
   if (!(await tableAR)) return; // no table AR on this phone: don't even download the viewer
 
   await import("../vendor/model-viewer/model-viewer.min.js");
-  type ModelViewer = HTMLElement & { canActivateAR: boolean; activateAR: () => Promise<void> };
+  type ModelViewer = HTMLElement & { canActivateAR: boolean; loaded: boolean; activateAR: () => Promise<void> };
   const mv = document.createElement("model-viewer") as ModelViewer;
+  const HIDDEN = "position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none";
+  const SHOWN = "position:fixed;inset:0;width:100vw;height:100dvh;z-index:100;background:transparent";
   const attrs: Record<string, string> = {
     src: table.model,
     alt: `${dish.label}, in 3D`,
     ar: "",
-    "ar-modes": "scene-viewer quick-look",
+    "ar-modes": "webxr scene-viewer quick-look",
     "ar-scale": "fixed", // true size — a 30 cm pizza is 30 cm on the table
-    loading: "eager", // iPhone builds its AR file from the loaded model
+    loading: "eager", // AR needs the model ready the moment the guest taps
     "aria-hidden": "true",
-    style: "position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none",
+    style: HIDDEN,
   };
   for (const [k, v] of Object.entries(attrs)) mv.setAttribute(k, v);
   // model-viewer's own little AR icon would duplicate our big "View on your table" button
@@ -249,16 +254,40 @@ async function showTable(dish: DishEntry, tableAR: Promise<boolean>) {
   mv.append(noIcon);
   document.body.append(mv);
 
-  // AR started but failed (e.g. the phone's AR app couldn't start): fall back to the coaster
+  const hide = () => mv.setAttribute("style", HIDDEN);
+  let inBrowserAR = false; // a WebXR session is running inside this page
   mv.addEventListener("ar-status", (e) => {
-    if ((e as CustomEvent<{ status: string }>).detail.status === "failed") tableARFailed(dish);
+    const status = (e as CustomEvent<{ status: string }>).detail.status;
+    if (status === "session-started") inBrowserAR = true;
+    if (status === "not-presenting") {
+      inBrowserAR = false;
+      hide(); // the guest left AR: back to the photo
+    }
+    if (status === "failed") {
+      inBrowserAR = false;
+      hide();
+      tableARFailed(dish); // AR couldn't start: fall back to the coaster
+    }
+  });
+  // Scene Viewer / Quick Look are separate apps: when the guest comes back, the page becomes
+  // visible again with no WebXR session — put the photo back
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && !inBrowserAR) hide();
   });
 
   await customElements.whenDefined("model-viewer");
   await (mv as ModelViewer & { updateComplete?: Promise<unknown> }).updateComplete;
   if (!mv.canActivateAR) return;
+  if (!mv.loaded) await new Promise((r) => mv.addEventListener("load", r, { once: true }));
   tableBtn.hidden = false;
-  tableBtn.onclick = () => void mv.activateAR();
+  tableBtn.onclick = async () => {
+    mv.setAttribute("style", SHOWN); // WebXR draws its AR view inside the element
+    try {
+      await mv.activateAR();
+    } catch {
+      hide();
+    }
+  };
 }
 
 main();
