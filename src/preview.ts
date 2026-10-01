@@ -86,6 +86,7 @@ if (dish) {
       asFood(gltf.scene);
       fitOnTable(gltf.scene, 0.9);
       spin.add(gltf.scene);
+      frame(spin);
       ready();
     }),
   );

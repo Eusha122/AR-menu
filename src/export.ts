@@ -13,7 +13,7 @@ import { build3D, textureOf, type Shape3D } from "./dish3d";
  *   support compressed meshes or WebP, and these models are small anyway.
  */
 
-type Table = { kind: "disc" | "bowl" | "stack"; diameterM: number; texture?: string; model: string };
+type Table = { kind: "disc" | "bowl" | "stack" | "model"; diameterM: number; texture?: string; model: string };
 type Entry = Shape3D & { label: string; table?: Table };
 
 const log = (s: string) => (document.getElementById("log")!.textContent += s + "\n");
@@ -53,7 +53,8 @@ export async function exportDish(slug: string): Promise<string> {
 
 document.getElementById("go")!.onclick = async () => {
   const manifest = (await (await fetch("/dishes.json")).json()) as Record<string, Entry>;
-  for (const slug of Object.keys(manifest).filter((s) => manifest[s].table)) {
+  // "model" dishes already HAVE their table file (e.g. a scan): never overwrite it
+  for (const slug of Object.keys(manifest).filter((s) => manifest[s].table && manifest[s].table!.kind !== "model")) {
     const b64 = await exportDish(slug);
     const blob = new Blob([Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))], { type: "model/gltf-binary" });
     const a = document.createElement("a");

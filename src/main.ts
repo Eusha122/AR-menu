@@ -212,61 +212,53 @@ function loadCoaster(dish: DishEntry) {
 }
 
 /**
- * "View on your table": the phone's own AR (Android Scene Viewer / WebXR, iPhone Quick Look)
- * through Google's <model-viewer>, which finds the real table and places the dish at true size.
- * Its self-contained build (with its own, newer three.js — mind-ar needs the older one) is
- * vendored and only loaded for dishes that have a table model.
+ * "View on your table": the phone's own AR app (Android Scene Viewer, iPhone Quick Look) through
+ * Google's <model-viewer>, which finds the real table and places the dish at true size. Its
+ * self-contained build (with its own, newer three.js — mind-ar needs the older one) is vendored
+ * and only loaded for dishes that have a table model.
  *
- * The start screen's photo becomes a live 3D view of the dish you can spin; the table button
- * appears only on phones that can actually do AR (canUseTableAR).
+ * The start screen keeps the dish PHOTO: <model-viewer> is only the hand-off to the AR app, so
+ * it's invisible. That's also why WebXR isn't one of its modes — WebXR draws AR inside the element
+ * itself. The table button appears only on phones that can actually do AR (canUseTableAR).
  */
 async function showTable(dish: DishEntry, tableAR: Promise<boolean>) {
   const table = dish.table!;
   // Back from a failed AR hand-off (Android returns here with this hash): never offer it again.
   if (location.hash === FALLBACK_HASH) tableARFailed(dish);
   addEventListener("hashchange", () => location.hash === FALLBACK_HASH && tableARFailed(dish));
+  if (!(await tableAR)) return; // no table AR on this phone: don't even download the viewer
+
   await import("../vendor/model-viewer/model-viewer.min.js");
   type ModelViewer = HTMLElement & { canActivateAR: boolean; activateAR: () => Promise<void> };
   const mv = document.createElement("model-viewer") as ModelViewer;
   const attrs: Record<string, string> = {
     src: table.model,
     alt: `${dish.label}, in 3D`,
-    poster: dish.poster ?? "",
     ar: "",
-    "ar-modes": "webxr scene-viewer quick-look",
+    "ar-modes": "scene-viewer quick-look",
     "ar-scale": "fixed", // true size — a 30 cm pizza is 30 cm on the table
-    "camera-controls": "",
-    "auto-rotate": "",
-    "rotation-per-second": "18deg",
-    "auto-rotate-delay": "0",
-    "interaction-prompt": "none",
-    // a burger looks best from the side, near its photo's own angle; flat dishes from higher up
-    "camera-orbit": table.kind === "stack" ? "0deg 68deg auto" : "0deg 58deg auto",
-    "shadow-intensity": "1",
-    "shadow-softness": "0.9",
-    "environment-image": "neutral",
-    exposure: "1.05",
-    "touch-action": "pan-y",
+    loading: "eager", // iPhone builds its AR file from the loaded model
+    "aria-hidden": "true",
+    style: "position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none",
   };
   for (const [k, v] of Object.entries(attrs)) mv.setAttribute(k, v);
-  mv.className = "dish-3d";
   // model-viewer's own little AR icon would duplicate our big "View on your table" button
   const noIcon = document.createElement("span");
   noIcon.slot = "ar-button";
   noIcon.hidden = true;
   mv.append(noIcon);
-  poster.replaceWith(mv);
+  document.body.append(mv);
 
-  // AR started but failed (e.g. the phone's AR session couldn't start): fall back to the coaster
+  // AR started but failed (e.g. the phone's AR app couldn't start): fall back to the coaster
   mv.addEventListener("ar-status", (e) => {
     if ((e as CustomEvent<{ status: string }>).detail.status === "failed") tableARFailed(dish);
   });
 
-  mv.addEventListener("load", async () => {
-    if (!mv.canActivateAR || !(await tableAR)) return;
-    tableBtn.hidden = false;
-    tableBtn.onclick = () => void mv.activateAR();
-  });
+  await customElements.whenDefined("model-viewer");
+  await (mv as ModelViewer & { updateComplete?: Promise<unknown> }).updateComplete;
+  if (!mv.canActivateAR) return;
+  tableBtn.hidden = false;
+  tableBtn.onclick = () => void mv.activateAR();
 }
 
 main();

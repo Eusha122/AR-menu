@@ -400,7 +400,9 @@ async function modelContent(url: string): Promise<Content> {
   const gltf = await dishLoader().loadAsync(url);
   const model = gltf.scene;
   asFood(model);
-  fitOnTable(model, 0.9);
+  // a flat dish fills ~90% of the coaster; a tall one (burger) 70%, or it towers over the screen
+  const size = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3());
+  fitOnTable(model, size.y > 0.5 * Math.max(size.x, size.z) ? 0.7 : 0.9);
 
   const spin = new THREE.Group();
   spin.add(model);

@@ -123,13 +123,14 @@ camera height in degrees, `angle` freezes the turn).
 ## View on your table (real table AR, no coaster)
 
 Dishes with real 3D (disc and bowl dishes) also get **"View on your table"**: the phone's own AR
-(Android Scene Viewer / WebXR, iPhone Quick Look) via Google's `<model-viewer>`, vendored in
+(Android Scene Viewer, iPhone Quick Look) via Google's `<model-viewer>`, vendored in
 `vendor/model-viewer/` (self-contained, with its own newer three.js — mind-ar needs the older one).
 It finds the real table and places the dish at **true size**, with rock-solid tracking and the
 room's own lighting. The coaster stays available as "Scan the coaster instead".
 
-On the start screen the photo becomes a live 3D view you can spin. The coaster tracker only
-downloads if the guest picks the coaster.
+The start screen always shows the dish photo; `<model-viewer>` is invisible and only hands off
+to the phone's AR app (Scene Viewer / Quick Look). The coaster tracker only downloads if the
+guest picks the coaster.
 
 **The table button only appears on phones that can really do it** (`canUseTableAR` in
 `src/main.ts`) — otherwise the coaster is the main button. `<model-viewer>` alone says "AR
@@ -149,6 +150,21 @@ To add a dish to table AR:
    textures and no mesh compression (the phones' AR viewers don't all support those). ~350 KB each.
 
 The burger has no table AR: tall food needs a real 3D model (a scan), not one rebuilt from a photo.
+
+## Real 3D models (best quality) — The BiteME Smash
+
+The burger uses a real textured 3D model (`"model"` in dishes.json, `table.kind: "model"`), made with
+Higgsfield's **Multi-Image to 3D** (Meshy) from FOUR views of the same burger — frames 90° apart
+from its turntable video (`raw/smash-views/`), so every view shows the same burger. ~30 credits.
+Separately generated AI images would each show a slightly different burger and confuse it.
+A phone scan (photogrammetry) of a real dish works the same way and is the most realistic.
+
+Fit any such model to real size and shrink it for phones (scale, centre, rest on the table, make
+non-metallic, simplify, JPEG textures — phone AR viewers don't all read WebP/compressed meshes):
+```
+npm run fit-model -- raw/signature-smash-meshy.glb public/models/signature-smash.glb 0.12 0.5 1024
+```
+(18 MB → 3.7 MB, visually identical.) `/tools/export.html` never overwrites `"model"` dishes.
 
 ## Stack dishes — a burger as real 3D from ONE side photo
 
