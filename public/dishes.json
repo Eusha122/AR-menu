@@ -26,15 +26,10 @@
   },
   "signature-smash": {
     "label": "The BiteME Smash",
-    "model": "/models/signature-smash.glb",
+    "sprite": "/sprites/signature-smash.webp",
     "poster": "/posters/signature-smash.webp",
     "target": "/targets/signature-smash.mind",
-    "order": "https://biteme-blush.vercel.app/menu?dish=signature-smash",
-    "table": {
-      "kind": "model",
-      "diameterM": 0.12,
-      "model": "/models/signature-smash.glb"
-    }
+    "order": "https://biteme-blush.vercel.app/menu?dish=signature-smash"
   },
   "tonkotsu-ramen": {
     "label": "Tonkotsu Ramen",

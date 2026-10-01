@@ -2,5 +2,6 @@ node_modules
 dist
 .cache
 .env*
+raw/*.mp4
 public/coasters
-raw/
+raw/*.glb

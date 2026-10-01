@@ -123,24 +123,13 @@ camera height in degrees, `angle` freezes the turn).
 ## View on your table (real table AR, no coaster)
 
 Dishes with real 3D (disc and bowl dishes) also get **"View on your table"**: the phone's own AR
-(Android Scene Viewer, iPhone Quick Look) via Google's `<model-viewer>`, vendored in
+(Android Scene Viewer / WebXR, iPhone Quick Look) via Google's `<model-viewer>`, vendored in
 `vendor/model-viewer/` (self-contained, with its own newer three.js — mind-ar needs the older one).
 It finds the real table and places the dish at **true size**, with rock-solid tracking and the
 room's own lighting. The coaster stays available as "Scan the coaster instead".
 
-The start screen always shows the dish photo; `<model-viewer>` is invisible until "View on your
-table" is tapped. On Android it then runs AR inside Chrome (WebXR, model-viewer's own viewer — the
-element goes full-screen for the session and hides again on exit); phones without WebXR get
-Google's Scene Viewer app, iPhones get Quick Look. The coaster tracker only downloads if the
-guest picks the coaster.
-
-**The table button only appears on phones that can really do it** (`canUseTableAR` in
-`src/main.ts`) — otherwise the coaster is the main button. `<model-viewer>` alone says "AR
-available" on every Android in Chrome, so the phone is asked directly: Android must report
-immersive AR through WebXR (true only on Google-AR / ARCore phones), iPhone Safari must support
-Quick Look links. Apps' built-in browsers (Instagram, Facebook, TikTok…) block the hand-off, so
-they get the coaster too. If AR still fails after tapping, the phone is remembered (localStorage)
-and never offered the button again.
+On the start screen the photo becomes a live 3D view you can spin; the table button only appears
+on phones that can do AR. The coaster tracker only downloads if the guest picks the coaster.
 
 To add a dish to table AR:
 1. Give it a `disc` or `bowl` (below), then add
@@ -152,34 +141,6 @@ To add a dish to table AR:
    textures and no mesh compression (the phones' AR viewers don't all support those). ~350 KB each.
 
 The burger has no table AR: tall food needs a real 3D model (a scan), not one rebuilt from a photo.
-
-## Real 3D models (best quality) — The BiteME Smash
-
-The burger uses a real textured 3D model (`"model"` in dishes.json, `table.kind: "model"`), made with
-Higgsfield's **Multi-Image to 3D** (Meshy) from FOUR views of the same burger — frames 90° apart
-from its turntable video (`raw/smash-views/`), so every view shows the same burger. ~30 credits.
-Separately generated AI images would each show a slightly different burger and confuse it.
-A phone scan (photogrammetry) of a real dish works the same way and is the most realistic.
-
-Fit any such model to real size and shrink it for phones (scale, centre, rest on the table, make
-non-metallic, simplify, JPEG textures — phone AR viewers don't all read WebP/compressed meshes):
-```
-npm run fit-model -- raw/signature-smash-meshy.glb public/models/signature-smash.glb 0.12 0.5 1024
-```
-(18 MB → 3.7 MB, visually identical.) `/tools/export.html` never overwrites `"model"` dishes.
-
-## Stack dishes — a burger as real 3D from ONE side photo
-
-```
-npm run make-stack -- signature-smash --photo=../biteme/public/menu/signature-smash.webp
-```
-Prints the `"stack"` entry for dishes.json (`scripts/make-stack.mjs`, built in `src/stack.ts`):
-the burger is measured as a stack of horizontal rings (each row's radius = the largest ring that
-fits inside the outline). The camera angle can't be read off a rim, so it's chosen so the base
-the burger stands on is 70% of the bottom bun's width (a real bun's rounded bottom; `--base=`).
-The top bun is fitted as a smooth dome, the photo is wrapped round the sides from the front, and
-the crown uses an enlarged patch of plain bun so the photo's glossy highlights don't streak.
-On the coaster it's 70% of the coaster's width; for table AR it's exported at 12 cm.
 
 ## Bowl dishes — real 3D from ONE photo (ramen, pho, curry, rice bowls)
 

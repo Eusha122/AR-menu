@@ -97,8 +97,7 @@ function showDish(dish: DishEntry) {
     poster.hidden = false;
   }
 
-  const tableAR = dish.table ? canUseTableAR() : Promise.resolve(false);
-  if (dish.table) void showTable(dish, tableAR);
+  if (dish.table) void showTable(dish);
 
   if (!navigator.mediaDevices?.getUserMedia) {
     if (dish.table) {
@@ -112,75 +111,24 @@ function showDish(dish: DishEntry) {
     return;
   }
 
-  void tableAR.then((ok) => {
-    if (!ok) return coasterFirst(dish);
+  if (dish.table) {
     // Table AR is the main path here; the coaster is the alternative. Its tracker and media only
     // download if the guest actually picks it — no wasted mobile data for everyone else.
     say("See it on your real table at real size — or use the coaster.");
     startBtn.classList.add("secondary");
     setButton("Scan the coaster instead", true, () => {
-      startBtn.classList.remove("secondary");
-      loadCoaster(dish).then(([mediaUrl, targetUrl, { MindARThree }, ar]) => void ar.begin(dish, mediaUrl, targetUrl, MindARThree), coasterFailed);
+      const assets = loadCoaster(dish);
+      assets.then(([mediaUrl, targetUrl, { MindARThree }, ar]) => void ar.begin(dish, mediaUrl, targetUrl, MindARThree), coasterFailed);
     });
-  });
-}
+    return;
+  }
 
-/** The coaster as the main (or only) way in: start its downloads now, "Start camera" when ready. */
-function coasterFirst(dish: DishEntry) {
-  tableBtn.hidden = true;
-  startBtn.classList.remove("secondary");
   say("Point your camera at the coaster on your table and watch this dish appear on it.");
   loadCoaster(dish).then(
     ([mediaUrl, targetUrl, { MindARThree }, ar]) =>
       setButton("Start camera", true, () => void ar.begin(dish, mediaUrl, targetUrl, MindARThree)),
     coasterFailed,
   );
-}
-
-/*
- * Can THIS phone place a dish on the real table? Asked of the phone itself, because
- * <model-viewer>'s own `canActivateAR` says yes on every Android in Chrome — it can't tell whether
- * the phone supports Google's AR (ARCore), and on one that doesn't the button opened a 3D view
- * with no camera, or did nothing. When in doubt the answer is no: the coaster works everywhere.
- */
-const NO_TABLE_AR = "biteme-no-table-ar";
-const FALLBACK_HASH = "#model-viewer-no-ar-fallback"; // where Android returns when its AR app can't run
-
-async function canUseTableAR(): Promise<boolean> {
-  if (location.hash === FALLBACK_HASH) return false; // just came back from a failed attempt
-  try {
-    if (localStorage.getItem(NO_TABLE_AR)) return false; // it already failed on this phone once
-  } catch {
-    /* storage blocked — just check again */
-  }
-  const ua = navigator.userAgent;
-  // Instagram, Facebook, TikTok, Snapchat, LINE, WeChat… open links in their own built-in
-  // browser, which blocks the hand-off to the phone's AR — the button would do nothing.
-  if (/FBAN|FBAV|FB_IAB|Instagram|Snapchat|Line\/|MicroMessenger|musical_ly|TikTok|BytedanceWebview/i.test(ua)) return false;
-  const iOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  // iPhone: Safari advertises Quick Look support on links (false in apps' built-in browsers)
-  if (iOS) return document.createElement("a").relList.supports("ar");
-  if (/Android/i.test(ua)) {
-    // Android: Chrome and Samsung Internet only report immersive AR on ARCore-supported phones
-    type XR = { isSessionSupported: (mode: string) => Promise<boolean> };
-    const xr = (navigator as Navigator & { xr?: XR }).xr;
-    if (!xr) return false;
-    return xr.isSessionSupported("immersive-ar").catch(() => false);
-  }
-  return false; // computers
-}
-
-/** Table AR failed on this phone after all: remember it, hide the button, lead with the coaster. */
-function tableARFailed(dish: DishEntry) {
-  try {
-    localStorage.setItem(NO_TABLE_AR, "1");
-  } catch {
-    /* storage blocked */
-  }
-  if (location.hash === FALLBACK_HASH) history.replaceState(null, "", location.pathname + location.search);
-  tableBtn.hidden = true;
-  // switch only if the guest hasn't already started the coaster (that click drops "secondary")
-  if (startBtn.classList.contains("secondary")) coasterFirst(dish);
 }
 
 function coasterFailed(err: unknown) {
@@ -204,7 +152,7 @@ function loadCoaster(dish: DishEntry) {
   };
   setButton("Loading…", false);
   return Promise.all([
-    preload(dish.model ?? dish.bowl?.texture ?? dish.stack?.texture ?? dish.disc ?? dish.sprite ?? dish.video!, progress("media")),
+    preload(dish.model ?? dish.bowl?.texture ?? dish.disc ?? dish.sprite ?? dish.video!, progress("media")),
     preload(dish.target, progress("target")),
     import("../vendor/mind-ar/mindar-image-three.prod.js"),
     import("./ar"),
@@ -212,82 +160,52 @@ function loadCoaster(dish: DishEntry) {
 }
 
 /**
- * "View on your table": the phone's own AR app (Android Scene Viewer, iPhone Quick Look) through
- * Google's <model-viewer>, which finds the real table and places the dish at true size. Its
- * self-contained build (with its own, newer three.js — mind-ar needs the older one) is vendored
- * and only loaded for dishes that have a table model.
+ * "View on your table": the phone's own AR (Android Scene Viewer / WebXR, iPhone Quick Look)
+ * through Google's <model-viewer>, which finds the real table and places the dish at true size.
+ * Its self-contained build (with its own, newer three.js — mind-ar needs the older one) is
+ * vendored and only loaded for dishes that have a table model.
  *
- * The start screen keeps the dish PHOTO: <model-viewer> stays invisible until the guest taps
- * "View on your table". On Android it then runs AR right inside Chrome (WebXR: model-viewer's
- * own viewer — tap to place, stays in the website). WebXR draws inside the element itself, so the
- * element is made full-screen for the session and hidden again when the guest exits. Phones
- * without WebXR fall back to Google's Scene Viewer app; iPhones use Quick Look.
- * The table button appears only on phones that can actually do AR (canUseTableAR).
+ * The start screen's photo becomes a live 3D view of the dish you can spin; the table button
+ * appears only on phones that can actually do AR.
  */
-async function showTable(dish: DishEntry, tableAR: Promise<boolean>) {
+async function showTable(dish: DishEntry) {
   const table = dish.table!;
-  // Back from a failed AR hand-off (Android returns here with this hash): never offer it again.
-  if (location.hash === FALLBACK_HASH) tableARFailed(dish);
-  addEventListener("hashchange", () => location.hash === FALLBACK_HASH && tableARFailed(dish));
-  if (!(await tableAR)) return; // no table AR on this phone: don't even download the viewer
-
   await import("../vendor/model-viewer/model-viewer.min.js");
-  type ModelViewer = HTMLElement & { canActivateAR: boolean; loaded: boolean; activateAR: () => Promise<void> };
+  type ModelViewer = HTMLElement & { canActivateAR: boolean; activateAR: () => Promise<void> };
   const mv = document.createElement("model-viewer") as ModelViewer;
-  const HIDDEN = "position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none";
-  const SHOWN = "position:fixed;inset:0;width:100vw;height:100dvh;z-index:100;background:transparent";
   const attrs: Record<string, string> = {
     src: table.model,
     alt: `${dish.label}, in 3D`,
+    poster: dish.poster ?? "",
     ar: "",
     "ar-modes": "webxr scene-viewer quick-look",
     "ar-scale": "fixed", // true size — a 30 cm pizza is 30 cm on the table
-    loading: "eager", // AR needs the model ready the moment the guest taps
-    "aria-hidden": "true",
-    style: HIDDEN,
+    "camera-controls": "",
+    "auto-rotate": "",
+    "rotation-per-second": "18deg",
+    "auto-rotate-delay": "0",
+    "interaction-prompt": "none",
+    "camera-orbit": "0deg 58deg auto",
+    "shadow-intensity": "1",
+    "shadow-softness": "0.9",
+    "environment-image": "neutral",
+    exposure: "1.05",
+    "touch-action": "pan-y",
   };
   for (const [k, v] of Object.entries(attrs)) mv.setAttribute(k, v);
+  mv.className = "dish-3d";
   // model-viewer's own little AR icon would duplicate our big "View on your table" button
   const noIcon = document.createElement("span");
   noIcon.slot = "ar-button";
   noIcon.hidden = true;
   mv.append(noIcon);
-  document.body.append(mv);
+  poster.replaceWith(mv);
 
-  const hide = () => mv.setAttribute("style", HIDDEN);
-  let inBrowserAR = false; // a WebXR session is running inside this page
-  mv.addEventListener("ar-status", (e) => {
-    const status = (e as CustomEvent<{ status: string }>).detail.status;
-    if (status === "session-started") inBrowserAR = true;
-    if (status === "not-presenting") {
-      inBrowserAR = false;
-      hide(); // the guest left AR: back to the photo
-    }
-    if (status === "failed") {
-      inBrowserAR = false;
-      hide();
-      tableARFailed(dish); // AR couldn't start: fall back to the coaster
-    }
+  mv.addEventListener("load", () => {
+    if (!mv.canActivateAR) return;
+    tableBtn.hidden = false;
+    tableBtn.onclick = () => void mv.activateAR();
   });
-  // Scene Viewer / Quick Look are separate apps: when the guest comes back, the page becomes
-  // visible again with no WebXR session — put the photo back
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible" && !inBrowserAR) hide();
-  });
-
-  await customElements.whenDefined("model-viewer");
-  await (mv as ModelViewer & { updateComplete?: Promise<unknown> }).updateComplete;
-  if (!mv.canActivateAR) return;
-  if (!mv.loaded) await new Promise((r) => mv.addEventListener("load", r, { once: true }));
-  tableBtn.hidden = false;
-  tableBtn.onclick = async () => {
-    mv.setAttribute("style", SHOWN); // WebXR draws its AR view inside the element
-    try {
-      await mv.activateAR();
-    } catch {
-      hide();
-    }
-  };
 }
 
 main();
