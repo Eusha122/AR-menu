@@ -19,7 +19,7 @@ import type { BowlSpec } from "./bowl";
  */
 export type DishEntry = { label: string; video?: string; disc?: string; bowl?: BowlSpec; sprite?: string; model?: string; table?: TableEntry; poster?: string; target: string; order: string };
 /** "View on your table" — a real-size .glb for the phone's own AR (made by /tools/export.html). */
-export type TableEntry = { kind: "disc" | "bowl"; diameterM: number; texture?: string; model: string };
+export type TableEntry = { kind: "disc" | "bowl" | "model"; diameterM: number; texture?: string; model: string };
 export type Manifest = Record<string, DishEntry>;
 
 const $ = <T extends Element>(sel: string) => document.querySelector(sel) as T;
