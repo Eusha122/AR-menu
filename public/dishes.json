@@ -4,32 +4,32 @@
     "video": "/videos/truffle-pizza.mp4",
     "poster": "/posters/truffle-pizza.webp",
     "target": "/targets/truffle-pizza.mind",
-    "order": "https://biteme-blush.vercel.app/menu?dish=truffle-pizza",
     "table": {
       "kind": "disc",
       "diameterM": 0.3,
       "texture": "/discs/truffle-pizza.webp",
       "model": "/models/truffle-pizza.glb"
-    }
+    },
+    "price": 1250
   },
   "margherita": {
     "label": "Margherita",
     "disc": "/discs/margherita.webp",
     "poster": "/posters/margherita.webp",
     "target": "/targets/margherita.mind",
-    "order": "https://biteme-blush.vercel.app/menu?dish=margherita",
     "table": {
       "kind": "disc",
       "diameterM": 0.3,
       "model": "/models/margherita.glb"
-    }
+    },
+    "price": 850
   },
   "signature-smash": {
     "label": "The BiteME Smash",
     "sprite": "/sprites/signature-smash.webp",
     "poster": "/posters/signature-smash.webp",
     "target": "/targets/signature-smash.mind",
-    "order": "https://biteme-blush.vercel.app/menu?dish=signature-smash"
+    "price": 690
   },
   "tonkotsu-ramen": {
     "label": "Tonkotsu Ramen",
@@ -91,23 +91,23 @@
     },
     "poster": "/posters/tonkotsu-ramen.webp",
     "target": "/targets/tonkotsu-ramen.mind",
-    "order": "https://biteme-blush.vercel.app/menu?dish=tonkotsu-ramen",
     "table": {
       "kind": "bowl",
       "diameterM": 0.2,
       "model": "/models/tonkotsu-ramen.glb"
-    }
+    },
+    "price": 950
   },
   "test-bottle": {
     "label": "Test Bottle",
     "model": "/models/test-bottle.glb",
     "poster": "/posters/test-bottle.webp",
     "target": "/targets/test-bottle.mind",
-    "order": "https://biteme-blush.vercel.app/menu",
     "table": {
       "kind": "model",
       "diameterM": 0.16,
       "model": "/models/test-bottle.glb"
-    }
+    },
+    "price": 1200
   }
 }

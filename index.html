@@ -94,15 +94,87 @@
       transform: translateY(140%); transition: transform .35s cubic-bezier(.2, .8, .2, 1);
     }
     #order.shown { transform: translateY(0); }
-    #order a {
-      display: block; width: 100%; max-width: 380px; text-align: center; text-decoration: none;
+    #order button {
+      appearance: none; border: 0; cursor: pointer; font: inherit;
+      display: block; width: 100%; max-width: 380px; text-align: center;
       background: var(--tomato); color: var(--page); font-weight: 800; font-size: 17px;
       padding: 17px; border-radius: 999px; box-shadow: 0 5px 0 var(--tomato-deep);
     }
+    #order-open {
+      appearance: none; border: 0; background: none; font: inherit; cursor: pointer;
+      margin-top: 14px; padding: 6px 2px; color: var(--tomato-deep); font-weight: 800; font-size: 16px;
+      text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 2px;
+    }
+    #order-open[hidden] { display: none; }
+
+    /* ---------- order sheet (demo: no payment) ---------- */
+    #order-sheet { position: fixed; inset: 0; z-index: 50; }
+    #order-sheet[hidden] { display: none; }
+    .os-backdrop { position: absolute; inset: 0; background: rgba(42, 26, 16, .45); opacity: 0; transition: opacity .28s ease; }
+    .os-panel {
+      position: absolute; left: 0; right: 0; bottom: 0; max-height: 88dvh; overflow-y: auto;
+      background: var(--page); border-radius: 26px 26px 0 0; padding: 10px 22px max(22px, env(safe-area-inset-bottom));
+      transform: translateY(100%); transition: transform .32s cubic-bezier(.2, .8, .2, 1); overscroll-behavior: contain;
+    }
+    #order-sheet.open .os-backdrop { opacity: 1; }
+    #order-sheet.open .os-panel { transform: none; }
+    .os-grab { width: 44px; height: 5px; border-radius: 99px; background: var(--line); margin: 0 auto 14px; }
+    .os-x { position: absolute; top: 12px; right: 14px; width: 40px; height: 40px; border-radius: 999px; border: 0; background: var(--paper); font-size: 18px; font-weight: 800; color: var(--ink); cursor: pointer; }
+    .os-head { display: flex; align-items: center; gap: 14px; padding-right: 40px; }
+    .os-head img { width: 72px; height: 72px; object-fit: contain; }
+    .os-head h2 { margin: 0 0 4px; font-size: 22px; font-weight: 900; line-height: 1.1; }
+    #os-rating { font-size: 14px; font-weight: 700; color: var(--ink-2); }
+    .os-label { margin: 20px 0 8px; font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-2); }
+    #os-sizes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    #os-sizes button {
+      appearance: none; font: inherit; cursor: pointer; padding: 12px 6px; border-radius: 16px;
+      border: 2px solid var(--line); background: var(--paper); color: var(--ink);
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+    }
+    #os-sizes button b { font-size: 15px; font-weight: 800; }
+    #os-sizes button span { font-size: 13px; font-weight: 700; color: var(--ink-2); }
+    #os-sizes button[aria-pressed="true"] { border-color: var(--tomato); background: #fff1e8; }
+    #os-sizes button[aria-pressed="true"] span { color: var(--tomato-deep); }
+    .os-qty { display: flex; align-items: center; gap: 18px; }
+    .os-qty button { appearance: none; width: 44px; height: 44px; border-radius: 999px; border: 2px solid var(--ink); background: none; font-size: 22px; font-weight: 800; color: var(--ink); cursor: pointer; }
+    .os-qty button:disabled { opacity: .3; cursor: default; }
+    #os-qty { min-width: 1.5ch; text-align: center; font-size: 20px; font-weight: 900; }
+    .os-cta {
+      appearance: none; border: 0; cursor: pointer; font: inherit; width: 100%; margin-top: 22px;
+      background: var(--tomato); color: var(--page); font-weight: 800; font-size: 17px;
+      padding: 17px; border-radius: 999px; box-shadow: 0 5px 0 var(--tomato-deep);
+    }
+    .os-cta:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--tomato-deep); }
+    .os-cta:disabled { opacity: .45; cursor: default; }
+    .os-cta.ghost { background: transparent; color: var(--ink); border: 2px solid var(--ink); box-shadow: none; margin-top: 14px; }
+    .os-demo { margin: 10px 0 0; font-size: 12px; font-weight: 600; color: var(--ink-2); }
+    #os-done { margin-top: 16px; padding: 18px; border-radius: 20px; background: #eef6e9; }
+    #os-done[hidden], #os-form[hidden], #os-review[hidden], .os-note[hidden] { display: none; }
+    #os-done h3 { margin: 0 0 6px; font-size: 20px; font-weight: 900; color: #2f6b3a; }
+    #os-done p { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.5; }
+    .os-reviews { margin-top: 26px; border-top: 2px solid var(--line); padding-top: 4px; }
+    .os-note { margin: 8px 0; font-size: 14px; font-weight: 600; color: var(--ink-2); }
+    #os-review .os-stars { display: flex; gap: 4px; }
+    #os-review .os-stars button { appearance: none; border: 0; background: none; padding: 2px; font-size: 32px; line-height: 1; color: var(--line); cursor: pointer; }
+    #os-review .os-stars button[aria-pressed="true"] { color: #f5b21b; }
+    #os-review textarea {
+      width: 100%; margin-top: 10px; min-height: 76px; resize: vertical; padding: 12px 14px; border-radius: 16px;
+      border: 2px solid var(--line); background: var(--paper); font: inherit; font-weight: 600; font-size: 15px; color: var(--ink);
+    }
+    #os-review .os-cta { margin-top: 12px; padding: 14px; font-size: 16px; }
+    #os-list { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 14px; }
+    #os-list li { padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+    .os-rv-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+    .os-rv-stars { color: #f5b21b; font-size: 16px; letter-spacing: 1px; }
+    .os-rv-stars i { font-style: normal; color: var(--line); }
+    .os-rv-meta { font-size: 12px; font-weight: 700; color: #2f6b3a; }
+    #os-list p { margin: 6px 0 0; font-size: 15px; font-weight: 600; line-height: 1.45; }
+    .os-x:focus-visible, #os-sizes button:focus-visible, .os-qty button:focus-visible, .os-cta:focus-visible,
+    #os-review .os-stars button:focus-visible, #order-open:focus-visible, #order button:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
 
     @media (prefers-reduced-motion: reduce) {
       .poster img, #reticle { animation: none; }
-      #start, #order, #hint, #reticle { transition: none; }
+      #start, #order, #hint, #reticle, .os-panel, .os-backdrop { transition: none; }
     }
   </style>
 </head>
@@ -111,7 +183,53 @@
 
   <div id="reticle" class="hidden" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
   <div id="hint" class="hidden" role="status"><span>Hold your phone above the coaster</span></div>
-  <div id="order"><a id="order-link" href="#" target="_blank" rel="noopener">Order this now</a></div>
+  <div id="order"><button id="order-ar" type="button">Order this dish</button></div>
+
+  <div id="order-sheet" hidden>
+    <div class="os-backdrop" data-close></div>
+    <div class="os-panel" role="dialog" aria-modal="true" aria-labelledby="os-name">
+      <div class="os-grab"></div>
+      <button class="os-x" type="button" data-close aria-label="Close">✕</button>
+      <div class="os-head">
+        <img id="os-img" alt="" />
+        <div><h2 id="os-name"></h2><div id="os-rating"></div></div>
+      </div>
+
+      <div id="os-form">
+        <p class="os-label">Size</p>
+        <div id="os-sizes"></div>
+        <p class="os-label">Quantity</p>
+        <div class="os-qty">
+          <button id="os-minus" type="button" aria-label="One less">−</button>
+          <span id="os-qty" aria-live="polite">1</span>
+          <button id="os-plus" type="button" aria-label="One more">+</button>
+        </div>
+        <button id="os-place" class="os-cta" type="button">Place order</button>
+        <p class="os-demo">Demo — no payment, nothing is charged or sent.</p>
+      </div>
+
+      <div id="os-done" hidden role="status">
+        <h3>Order placed ✓</h3>
+        <p id="os-done-text"></p>
+        <button id="os-again" class="os-cta ghost" type="button">Order again</button>
+      </div>
+
+      <section class="os-reviews" aria-label="Reviews">
+        <p class="os-label">Reviews</p>
+        <form id="os-review" hidden>
+          <p class="os-note">You ordered this — how was it?</p>
+          <div class="os-stars" role="group" aria-label="Your rating">
+            <button type="button" data-star="1" aria-label="1 star">★</button><button type="button" data-star="2" aria-label="2 stars">★</button><button type="button" data-star="3" aria-label="3 stars">★</button><button type="button" data-star="4" aria-label="4 stars">★</button><button type="button" data-star="5" aria-label="5 stars">★</button>
+          </div>
+          <textarea id="os-text" maxlength="400" placeholder="Tell others what you thought (optional)"></textarea>
+          <button id="os-submit" class="os-cta" type="submit" disabled>Post review</button>
+        </form>
+        <p id="os-locked" class="os-note">Only guests who ordered this dish can review it.</p>
+        <p id="os-thanks" class="os-note" hidden>Thanks for your review!</p>
+        <ul id="os-list"></ul>
+      </section>
+    </div>
+  </div>
 
   <main id="start">
     <div class="brand">BiteME · AR</div>
@@ -121,6 +239,7 @@
     <ul id="dish-list" class="dish-list" hidden></ul>
     <button id="table-btn" type="button" hidden>View on your table</button>
     <button id="start-btn" type="button" disabled>Loading…</button>
+    <button id="order-open" type="button" hidden>Order this dish</button>
     <p class="fine" id="fine">Works in your phone's browser — no app needed. Your camera view never leaves your phone.</p>
   </main>
 

@@ -15,9 +15,10 @@ import type { BowlSpec } from "./bowl";
  *  - `sprite`: still background-free photo of a TALL dish (burger) — stands on the coaster facing
  *    the phone. Placeholder until a turntable `video` of the dish exists.
  *  - `model`: optional .glb 3D model; if set it's used instead of the others.
+ *  - `price`: base (medium) price in taka; the Order sheet derives Small / Large from it.
  *  - `poster`: transparent image of the dish for the start screen and the dish list.
  */
-export type DishEntry = { label: string; video?: string; disc?: string; bowl?: BowlSpec; sprite?: string; model?: string; table?: TableEntry; poster?: string; target: string; order: string };
+export type DishEntry = { label: string; video?: string; disc?: string; bowl?: BowlSpec; sprite?: string; model?: string; table?: TableEntry; poster?: string; target: string; price: number };
 /** "View on your table" — a real-size .glb for the phone's own AR (made by /tools/export.html). */
 export type TableEntry = { kind: "disc" | "bowl" | "model"; diameterM: number; texture?: string; model: string };
 export type Manifest = Record<string, DishEntry>;
@@ -34,7 +35,8 @@ export const fine = $<HTMLParagraphElement>("#fine");
 export const hint = $<HTMLDivElement>("#hint");
 export const reticle = $<HTMLDivElement>("#reticle");
 export const orderBar = $<HTMLDivElement>("#order");
-export const orderLink = $<HTMLAnchorElement>("#order-link");
+export const orderAr = $<HTMLButtonElement>("#order-ar");
+export const orderOpen = $<HTMLButtonElement>("#order-open");
 export const container = $<HTMLDivElement>("#ar-container");
 
 export function say(message: string, isError = false) {

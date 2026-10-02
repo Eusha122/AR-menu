@@ -1,4 +1,5 @@
-import { dishList, fine, orderLink, poster, say, setButton, startBtn, startTitle, tableBtn, type DishEntry, type Manifest } from "./ui";
+import { openOrder, setupOrder } from "./order";
+import { dishList, fine, orderAr, orderOpen, poster, say, setButton, startBtn, startTitle, tableBtn, type DishEntry, type Manifest } from "./ui";
 
 /*
  * Entry point. Deliberately tiny (no three.js): it renders the start screen immediately, then
@@ -55,7 +56,7 @@ async function main() {
     say("This dish isn't available in AR yet — here's what you can see on your table right now.");
     return showDishList(manifest, false);
   }
-  showDish(dish);
+  showDish(slug, dish);
 }
 
 /** Landing page (no dish in the link): every AR dish, each linking to its own page. */
@@ -86,11 +87,14 @@ function showDishList(manifest: Manifest, retitle = true) {
   );
 }
 
-function showDish(dish: DishEntry) {
+function showDish(slug: string, dish: DishEntry) {
   document.title = `${dish.label} — BiteME AR`;
   startTitle.textContent = dish.label;
-  orderLink.href = dish.order;
-  orderLink.textContent = `Order ${dish.label}`;
+  // Order sheet (demo): from the start screen and from the button shown in AR
+  setupOrder(slug, dish);
+  orderAr.onclick = openOrder;
+  orderOpen.onclick = openOrder;
+  orderOpen.hidden = false;
   if (dish.poster) {
     poster.src = dish.poster;
     poster.alt = dish.label;

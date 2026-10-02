@@ -82,7 +82,7 @@ trusts, and the best possible tracking image in one move.
   "video": "/videos/truffle-pizza.mp4",
   "poster": "/posters/truffle-pizza.webp",
   "target": "/targets/truffle-pizza.mind",
-  "order": "https://biteme-blush.vercel.app/menu?dish=truffle-pizza"
+  "price": 1250
 }
 ```
 It appears on the landing page (`/`) automatically.
