@@ -277,8 +277,3 @@ result was a scrap of floor (~1,200 points). Expected — transparent, refractiv
 give photogrammetry no stable surface. **Food (matte, opaque) is the right kind of object**; scan a
 real dish in soft daylight on a matte surface to test the pipeline properly.
 
-The bottle is in AR anyway as **"Test Bottle"** (`/dish/test-bottle`): modelled to its measured
-size (6.4 × 6.4 × 3.4 cm body) with real glass (transmission + blended opacity so iPhone Quick
-Look still shows see-through glass) — `npm run dev` → `/tools/build-bottle.html`. Table AR at
-true size, plus its own coaster. Tall models on the coaster are scaled so their height is ~70% of
-the coaster's width.

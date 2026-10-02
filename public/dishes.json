@@ -97,17 +97,5 @@
       "model": "/models/tonkotsu-ramen.glb"
     },
     "price": 950
-  },
-  "test-bottle": {
-    "label": "Test Bottle",
-    "model": "/models/test-bottle.glb",
-    "poster": "/posters/test-bottle.webp",
-    "target": "/targets/test-bottle.mind",
-    "table": {
-      "kind": "model",
-      "diameterM": 0.16,
-      "model": "/models/test-bottle.glb"
-    },
-    "price": 1200
   }
 }

@@ -105,8 +105,8 @@ function showDish(slug: string, dish: DishEntry) {
 
   if (!navigator.mediaDevices?.getUserMedia) {
     if (dish.table) {
-      startBtn.hidden = true; // the 3D view above still works on a computer
-      say("Spin the dish with your finger or mouse. Open this page on your phone to put it on your table.");
+      startBtn.hidden = true;
+      say("Open this page on your phone to put this dish on your table.");
       return;
     }
     say("This needs a phone camera. Open this page on your phone — scan the QR code on the coaster.", true);
@@ -169,25 +169,31 @@ function loadCoaster(dish: DishEntry) {
  * Its self-contained build (with its own, newer three.js — mind-ar needs the older one) is
  * vendored and only loaded for dishes that have a table model.
  *
- * The start screen's photo becomes a live 3D view of the dish you can spin; the table button
- * appears only on phones that can actually do AR.
+ * The start screen keeps showing the dish photo; the table button appears only on phones that
+ * can actually do AR.
  */
 async function showTable(dish: DishEntry) {
   const table = dish.table!;
   await import("../vendor/model-viewer/model-viewer.min.js");
-  type ModelViewer = HTMLElement & { canActivateAR: boolean; activateAR: () => Promise<void> };
+  type ModelViewer = HTMLElement & {
+    canActivateAR: boolean;
+    activateAR: () => Promise<void>;
+    dismissPoster: () => void;
+    showPoster: () => void;
+  };
   const mv = document.createElement("model-viewer") as ModelViewer;
+  // The start screen shows the dish PHOTO, not a 3D view: the viewer keeps its poster (the photo)
+  // up — reveal="manual" — and only reveals the 3D dish when AR starts, then puts the photo back.
+  // It stays a normal, full-size element, so loading and the in-Chrome AR work exactly as before.
   const attrs: Record<string, string> = {
     src: table.model,
-    alt: `${dish.label}, in 3D`,
+    alt: dish.label,
     poster: dish.poster ?? "",
+    reveal: "manual",
+    loading: "eager",
     ar: "",
     "ar-modes": "webxr scene-viewer quick-look",
     "ar-scale": "fixed", // true size — a 30 cm pizza is 30 cm on the table
-    "camera-controls": "",
-    "auto-rotate": "",
-    "rotation-per-second": "18deg",
-    "auto-rotate-delay": "0",
     "interaction-prompt": "none",
     "camera-orbit": "0deg 58deg auto",
     "shadow-intensity": "1",
@@ -205,10 +211,27 @@ async function showTable(dish: DishEntry) {
   mv.append(noIcon);
   poster.replaceWith(mv);
 
+  let inAR = false;
+  mv.addEventListener("ar-status", (e) => {
+    const status = (e as CustomEvent<{ status: string }>).detail.status;
+    if (status === "session-started") inAR = true;
+    if (status === "not-presenting" || status === "failed") {
+      inAR = false;
+      mv.showPoster(); // back to the photo
+    }
+  });
+  // back from Google's / Apple's AR app (they leave the page): photo again
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && !inAR) mv.showPoster();
+  });
+
   mv.addEventListener("load", () => {
     if (!mv.canActivateAR) return;
     tableBtn.hidden = false;
-    tableBtn.onclick = () => void mv.activateAR();
+    tableBtn.onclick = () => {
+      mv.dismissPoster();
+      void mv.activateAR();
+    };
   });
 }
 
