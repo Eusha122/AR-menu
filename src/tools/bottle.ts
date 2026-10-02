@@ -99,7 +99,8 @@ export function buildBottle() {
   decal.name = "label";
   root.add(decal);
 
-  root.scale.setScalar(0.01); // cm → m
+  // cm → m, shown 2.5× real size: at true size (9 cm tall) it looked tiny on the table
+  root.scale.setScalar(0.025);
   return root;
 }
 

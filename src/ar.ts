@@ -431,10 +431,10 @@ async function modelContent(url: string): Promise<Content> {
   const model = gltf.scene;
   asFood(model);
   // a flat dish fills ~90% of the coaster; a TALL object (bottle, burger) is scaled down so it
-  // doesn't tower over the camera — its height becomes ~70% of the coaster's width
+  // doesn't tower over the camera — its height becomes about the coaster's width
   const sz = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3());
   const wide = Math.max(sz.x, sz.z);
-  fitOnTable(model, sz.y > 0.6 * wide ? (0.7 * wide) / sz.y : 0.9);
+  fitOnTable(model, sz.y > 0.6 * wide ? (1.05 * wide) / sz.y : 0.9);
 
   const spin = new THREE.Group();
   spin.add(model);

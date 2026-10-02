@@ -106,7 +106,7 @@
     "order": "https://biteme-blush.vercel.app/menu",
     "table": {
       "kind": "model",
-      "diameterM": 0.064,
+      "diameterM": 0.16,
       "model": "/models/test-bottle.glb"
     }
   }
